@@ -1,5 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { sha256Hex } from '../../hash'
 
 /** Files with the extension directly inside dir, sorted. Missing dir -> []. */
 export function listFiles(dir: string, extension: string): string[] {
@@ -61,4 +62,10 @@ export function fileModifiedAt(path: string): string {
   } catch {
     return new Date(0).toISOString();
   }
+}
+
+/** sha256 hex of the file content, or '' when the file cannot be read. */
+export function fileSha256(path: string): string {
+  const content = readTextFile(path)
+  return content === null ? '' : sha256Hex(content)
 }

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   fileExists,
+  fileSha256,
   fileModifiedAt,
   listFiles,
   listFilesRecursive,
@@ -88,3 +89,13 @@ describe("fileModifiedAt", () => {
     expect(fileModifiedAt(join(root, "nope"))).toBe(new Date(0).toISOString());
   });
 });
+
+describe('fileSha256', () => {
+  it('hashes file content and returns the empty string for missing files', () => {
+    writeFileSync(join(root, 'abc.txt'), 'abc')
+    expect(fileSha256(join(root, 'abc.txt'))).toBe(
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+    )
+    expect(fileSha256(join(root, 'nope.txt'))).toBe('')
+  })
+})

@@ -16,7 +16,7 @@ export interface ResourceQuery {
   projectId?: string
 }
 
-export type ResourceSummary = Omit<ResourceDocument, 'fields' | 'native'>
+export type ResourceSummary = Omit<ResourceDocument, 'fields' | 'native' | 'fingerprints'>
 
 function matches(native: NativeResource, query: ResourceQuery): boolean {
   if (query.kind !== undefined && native.kind !== query.kind) return false
@@ -26,7 +26,7 @@ function matches(native: NativeResource, query: ResourceQuery): boolean {
 }
 
 function toSummary(doc: ResourceDocument): ResourceSummary {
-  const { fields: _fields, native: _native, ...summary } = doc
+  const { fields: _fields, native: _native, fingerprints: _fingerprints, ...summary } = doc
   return summary
 }
 

@@ -43,6 +43,16 @@ describe('buildDocument', () => {
     )
     expect(decodeResourceId(doc.id).entryKey).toBe('github')
   })
+
+  it('fingerprints every source path, empty hash for missing files', () => {
+    const doc = buildDocument(native, {
+      name: 'x',
+      fields: {},
+      native: { format: 'markdown' },
+      diagnostics: []
+    })
+    expect(doc.fingerprints).toEqual([{ path: '/tmp/does-not-exist.md', hash: '' }])
+  })
 })
 
 describe('stringField', () => {

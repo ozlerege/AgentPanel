@@ -6,7 +6,7 @@ import type {
   ResourceScope
 } from '../../../shared/resource'
 import { encodeResourceId } from './resource-id'
-import { fileModifiedAt } from './scan'
+import { fileModifiedAt, fileSha256 } from './scan'
 
 /** The provider/scope context a discover function stamps onto its natives. */
 export interface ScopeTemplate {
@@ -40,6 +40,7 @@ export function buildDocument(native: NativeResource, parts: DocumentParts): Res
     projectId: native.projectId,
     enabled: 'unsupported',
     sourcePaths: native.paths,
+    fingerprints: native.paths.map((path) => ({ path, hash: fileSha256(path) })),
     modifiedAt: fileModifiedAt(native.paths[0]),
     ...parts
   }
