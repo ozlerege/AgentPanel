@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { PanelLeft } from 'lucide-react'
-import type { ProviderCapabilities, ProviderStatus } from '@shared/ipc'
+import type { ProviderCapabilities, ProviderStatus, ProviderUsage } from '@shared/ipc'
 import { EmptyState } from './components/EmptyState'
 import { NavSidebar } from './components/NavSidebar'
 import { Button } from './components/ui/button'
@@ -15,11 +15,21 @@ interface ScreenProps {
   selected: string
   capabilities: ProviderCapabilities[]
   providers: ProviderStatus[] | null
+  usage: ProviderUsage[] | null
+  usageLoading: boolean
+  onRefreshUsage(): void
 }
 
-function Screen({ selected, capabilities, providers }: ScreenProps) {
+function Screen({ selected, capabilities, providers, usage, usageLoading, onRefreshUsage }: ScreenProps) {
   if (selected === 'overview') {
-    return <OverviewScreen providers={providers} capabilities={capabilities} />
+    return (
+      <OverviewScreen
+        providers={providers}
+        usage={usage}
+        usageLoading={usageLoading}
+        onRefreshUsage={onRefreshUsage}
+      />
+    )
   }
   if (selected === 'projects') return <ProjectsScreen />
   if (selected === 'settings') return <SettingsScreen />
@@ -63,6 +73,9 @@ export default function App() {
   const [selected, setSelected] = useState('overview')
   const [capabilities, setCapabilities] = useState<ProviderCapabilities[]>([])
   const [providers, setProviders] = useState<ProviderStatus[] | null>(null)
+  const [usage, setUsage] = useState<ProviderUsage[] | null>(null)
+  const [usageLoading, setUsageLoading] = useState(false)
+  const usageRequestInFlight = useRef(false)
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     return localStorage.getItem(SIDEBAR_STORAGE_KEY) !== 'false'
   })
@@ -81,6 +94,29 @@ export default function App() {
       .then(setProviders)
       .catch(() => setProviders([]))
   }, [])
+
+  const refreshUsage = useCallback(() => {
+    if (usageRequestInFlight.current) return
+    usageRequestInFlight.current = true
+    setUsageLoading(true)
+    window.desktopApi.usage
+      .list()
+      .then(setUsage)
+      .catch(() => setUsage([]))
+      .finally(() => {
+        usageRequestInFlight.current = false
+        setUsageLoading(false)
+      })
+  }, [])
+
+  useEffect(() => {
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(refreshUsage, { timeout: 1000 })
+      return () => window.cancelIdleCallback(idleId)
+    }
+    const timeoutId = globalThis.setTimeout(refreshUsage, 250)
+    return () => globalThis.clearTimeout(timeoutId)
+  }, [refreshUsage])
 
   return (
     <ThemeProvider>
@@ -125,7 +161,14 @@ export default function App() {
               </Button>
             </div>
           </div>
-          <Screen selected={selected} capabilities={capabilities} providers={providers} />
+          <Screen
+            selected={selected}
+            capabilities={capabilities}
+            providers={providers}
+            usage={usage}
+            usageLoading={usageLoading}
+            onRefreshUsage={refreshUsage}
+          />
         </main>
       </div>
     </ThemeProvider>

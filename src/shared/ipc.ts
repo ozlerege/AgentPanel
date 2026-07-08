@@ -23,6 +23,45 @@ export const providerCapabilitiesSchema = z.object({
 })
 export type ProviderCapabilities = z.infer<typeof providerCapabilitiesSchema>
 
+export const usageWindowSchema = z.object({
+  label: z.string(),
+  usedPercent: z.number().min(0).max(100),
+  windowMinutes: z.number().int().positive(),
+  resetsAt: z.string()
+})
+export type UsageWindow = z.infer<typeof usageWindowSchema>
+
+export const dailyUsageSchema = z.object({
+  date: z.string(),
+  sessions: z.number().int().nonnegative(),
+  tokens: z.number().int().nonnegative()
+})
+export type DailyUsage = z.infer<typeof dailyUsageSchema>
+
+export const recentSessionSchema = z.object({
+  id: z.string(),
+  startedAt: z.string(),
+  updatedAt: z.string(),
+  project: z.string(),
+  model: z.string().optional(),
+  tokens: z.number().int().nonnegative()
+})
+export type RecentSession = z.infer<typeof recentSessionSchema>
+
+export const providerUsageSchema = z.object({
+  providerId: providerIdSchema,
+  status: z.enum(['available', 'partial', 'unavailable']),
+  source: z.string(),
+  updatedAt: z.string().nullable(),
+  limits: z.array(usageWindowSchema),
+  totalSessions: z.number().int().nonnegative(),
+  totalTokens: z.number().int().nonnegative(),
+  daily: z.array(dailyUsageSchema),
+  recentSessions: z.array(recentSessionSchema),
+  message: z.string().optional()
+})
+export type ProviderUsage = z.infer<typeof providerUsageSchema>
+
 export const projectSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -97,6 +136,10 @@ export const ipcContract = {
   'providers:capabilities': {
     request: z.undefined(),
     response: z.array(providerCapabilitiesSchema)
+  },
+  'usage:list': {
+    request: z.undefined(),
+    response: z.array(providerUsageSchema)
   },
   'projects:add': {
     request: z.undefined(),

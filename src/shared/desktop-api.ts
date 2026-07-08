@@ -1,6 +1,7 @@
 import type {
   Project,
   ProviderCapabilities,
+  ProviderUsage,
   ProviderStatus,
   ResourceQuery,
   ResourceSummary
@@ -15,6 +16,9 @@ export interface DesktopApi {
   providers: {
     detect(): Promise<ProviderStatus[]>
     capabilities(): Promise<ProviderCapabilities[]>
+  }
+  usage: {
+    list(): Promise<ProviderUsage[]>
   }
   projects: {
     add(): Promise<Project | null>

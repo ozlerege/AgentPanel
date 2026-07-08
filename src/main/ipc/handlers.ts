@@ -10,12 +10,14 @@ import { toAppError } from '../errors'
 import type { ProviderRegistry } from '../providers/registry'
 import type { ProjectsStore } from '../services/projects-store'
 import type { ResourceService } from '../services/resources'
+import type { UsageService } from '../services/usage'
 import { isTrustedUrl } from './trust'
 
 export interface HandlerDeps {
   projects: ProjectsStore
   registry: ProviderRegistry
   resources: ResourceService
+  usage: UsageService
   pickDirectory(): Promise<string | null>
 }
 
@@ -67,6 +69,7 @@ export function registerIpcHandlers(deps: HandlerDeps): void {
   handle('providers:capabilities', () =>
     deps.registry.all().map((adapter) => adapter.capabilities())
   )
+  handle('usage:list', () => deps.usage.list())
   handle('projects:add', async () => {
     const directory = await deps.pickDirectory()
     return directory === null ? null : deps.projects.add(directory)
