@@ -20,6 +20,13 @@ async function invoke<C extends IpcChannel>(
   return envelope.data
 }
 
+async function invokeEnvelope<C extends IpcChannel>(
+  channel: C,
+  payload?: IpcRequest<C>
+): Promise<IpcEnvelope<IpcResponse<C>>> {
+  return (await ipcRenderer.invoke(channel, payload)) as IpcEnvelope<IpcResponse<C>>
+}
+
 const api: DesktopApi = {
   providers: {
     detect: () => invoke('providers:detect'),
@@ -37,7 +44,14 @@ const api: DesktopApi = {
   },
   resources: {
     list: (query) => invoke('resources:list', query ?? {}),
-    read: (id) => invoke('resources:read', { id })
+    read: (id) => invoke('resources:read', { id }),
+    validate: (edit) => invoke('resources:validate', edit),
+    preview: (edit) => invokeEnvelope('resources:preview', edit),
+    apply: (edit) => invokeEnvelope('resources:apply', edit),
+    restore: (backupId) => invokeEnvelope('resources:restore', { backupId })
+  },
+  backups: {
+    list: (resourceId) => invoke('backups:list', { resourceId })
   }
 }
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   appErrorSchema,
+  backupEntrySchema,
+  changePreviewSchema,
   ipcContract,
   projectSchema,
   resourceDocumentSchema,
@@ -75,10 +77,68 @@ describe('ipc contract schemas', () => {
     expect(resourceSummarySchema.safeParse(summary).success).toBe(true)
     const document = {
       ...summary,
+      fingerprints: [{ path: '/tmp/a.md', hash: 'aa' }],
       fields: { model: 'sonnet' },
       native: { format: 'markdown', raw: '---\n' }
     }
     expect(resourceDocumentSchema.safeParse(document).success).toBe(true)
     expect(resourceDocumentSchema.safeParse(summary).success).toBe(false)
+  })
+})
+
+describe('resource edit channels', () => {
+  const formEdit = {
+    resourceId: 'abc',
+    base: [{ path: '/f.md', hash: 'aa' }],
+    edit: { mode: 'form', fields: { name: 'x' }, body: 'B' }
+  }
+  const sourceEdit = {
+    resourceId: 'abc',
+    base: [],
+    edit: { mode: 'source', raw: '---\nname: x\n---\n' }
+  }
+
+  it('accepts form and source edits on validate/preview/apply', () => {
+    for (const channel of ['resources:validate', 'resources:preview', 'resources:apply'] as const) {
+      expect(ipcContract[channel].request.parse(formEdit)).toEqual(formEdit)
+      expect(ipcContract[channel].request.parse(sourceEdit)).toEqual(sourceEdit)
+    }
+  })
+
+  it('rejects unknown edit modes and missing fields', () => {
+    const bad = { resourceId: 'abc', base: [], edit: { mode: 'patch', raw: 'x' } }
+    expect(ipcContract['resources:apply'].request.safeParse(bad).success).toBe(false)
+    expect(ipcContract['resources:apply'].request.safeParse({}).success).toBe(false)
+  })
+
+  it('validates restore and backups:list requests', () => {
+    expect(ipcContract['resources:restore'].request.parse({ backupId: 'b1' })).toEqual({
+      backupId: 'b1'
+    })
+    expect(ipcContract['backups:list'].request.parse({})).toEqual({})
+    expect(ipcContract['backups:list'].request.parse({ resourceId: 'r' })).toEqual({
+      resourceId: 'r'
+    })
+  })
+
+  it('parses a change preview and a backup entry', () => {
+    const preview = {
+      operations: [{ kind: 'write', path: '/f.md', content: 'new' }],
+      diffs: [{ path: '/f.md', unified: '@@ -1 +1 @@' }],
+      validation: { ok: true, diagnostics: [] },
+      conflicts: []
+    }
+    expect(changePreviewSchema.parse(preview)).toEqual(preview)
+    const entry = {
+      id: 'b1',
+      resourceId: 'r1',
+      resourceName: 'code-reviewer',
+      provider: 'claude',
+      kind: 'agents',
+      operation: 'update',
+      paths: ['/f.md'],
+      createdAt: '2026-07-08T00:00:00.000Z'
+    }
+    expect(backupEntrySchema.parse(entry)).toEqual(entry)
   })
 })

@@ -96,6 +96,61 @@ export const diagnosticSchema = z.object({
   path: z.string().optional()
 })
 
+export const fileFingerprintSchema = z.object({
+  path: z.string(),
+  hash: z.string()
+})
+
+export const resourceEditSchema = z.object({
+  resourceId: z.string(),
+  base: z.array(fileFingerprintSchema),
+  edit: z.discriminatedUnion('mode', [
+    z.object({
+      mode: z.literal('form'),
+      fields: z.record(z.string(), z.unknown()),
+      body: z.string().optional()
+    }),
+    z.object({ mode: z.literal('source'), raw: z.string() })
+  ])
+})
+
+export const validationResultSchema = z.object({
+  ok: z.boolean(),
+  diagnostics: z.array(diagnosticSchema)
+})
+export type ValidationResultShape = z.infer<typeof validationResultSchema>
+
+export const fileOperationSchema = z.object({
+  kind: z.enum(['write', 'move', 'delete', 'mkdir']),
+  path: z.string(),
+  content: z.string().optional(),
+  toPath: z.string().optional()
+})
+
+export const fileDiffSchema = z.object({
+  path: z.string(),
+  unified: z.string()
+})
+
+export const changePreviewSchema = z.object({
+  operations: z.array(fileOperationSchema),
+  diffs: z.array(fileDiffSchema),
+  validation: validationResultSchema,
+  conflicts: z.array(z.string())
+})
+
+export const backupEntrySchema = z.object({
+  id: z.string(),
+  resourceId: z.string(),
+  resourceName: z.string(),
+  provider: providerIdSchema,
+  kind: z.string(),
+  operation: z.enum(['update', 'restore']),
+  paths: z.array(z.string()),
+  createdAt: z.string()
+})
+export type BackupEntry = z.infer<typeof backupEntrySchema>
+
 export const resourceQuerySchema = z.object({
   providerId: providerIdSchema.optional(),
   kind: z.string().optional(),
@@ -120,6 +175,7 @@ export const resourceSummarySchema = z.object({
 export type ResourceSummary = z.infer<typeof resourceSummarySchema>
 
 export const resourceDocumentSchema = resourceSummarySchema.extend({
+  fingerprints: z.array(fileFingerprintSchema),
   fields: z.record(z.string(), z.unknown()),
   native: z.object({
     format: z.enum(['markdown', 'json', 'toml', 'yaml', 'directory', 'unknown']),
@@ -127,6 +183,18 @@ export const resourceDocumentSchema = resourceSummarySchema.extend({
     unknownFields: z.record(z.string(), z.unknown()).optional()
   })
 })
+
+export const applyResultSchema = z.object({
+  document: resourceDocumentSchema,
+  backupId: z.string()
+})
+export type ApplyResult = z.infer<typeof applyResultSchema>
+
+export const restoreResultSchema = z.object({
+  document: resourceDocumentSchema.nullable(),
+  backupId: z.string()
+})
+export type RestoreResult = z.infer<typeof restoreResultSchema>
 
 export const ipcContract = {
   'providers:detect': {
@@ -160,6 +228,26 @@ export const ipcContract = {
   'resources:read': {
     request: z.object({ id: z.string() }),
     response: resourceDocumentSchema
+  },
+  'resources:validate': {
+    request: resourceEditSchema,
+    response: validationResultSchema
+  },
+  'resources:preview': {
+    request: resourceEditSchema,
+    response: changePreviewSchema
+  },
+  'resources:apply': {
+    request: resourceEditSchema,
+    response: applyResultSchema
+  },
+  'resources:restore': {
+    request: z.object({ backupId: z.string() }),
+    response: restoreResultSchema
+  },
+  'backups:list': {
+    request: z.object({ resourceId: z.string().optional() }),
+    response: z.array(backupEntrySchema)
   }
 } as const
 
