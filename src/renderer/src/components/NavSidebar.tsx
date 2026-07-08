@@ -2,6 +2,7 @@ import { Archive, Folder, LayoutGrid, Settings, SlidersHorizontal } from 'lucide
 import type { ProviderCapabilities, ProviderStatus } from '@shared/ipc'
 import { cn } from '../lib/utils'
 import { buildNavSections } from '../navigation'
+import { ProviderLogo } from './ProviderLogo'
 
 const ITEM_ICONS: Record<string, typeof LayoutGrid> = {
   overview: LayoutGrid,
@@ -41,8 +42,11 @@ export function NavSidebar({ capabilities, providers, selected, onSelect }: NavS
           return (
             <div key={section.key}>
               {section.label ? (
-                <div className="flex items-baseline justify-between px-2 pb-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                <div className="flex items-center justify-between px-2 pb-1.5">
+                  <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {section.providerId ? (
+                      <ProviderLogo providerId={section.providerId} className="size-3" />
+                    ) : null}
                     {section.label}
                   </span>
                   {status ? (

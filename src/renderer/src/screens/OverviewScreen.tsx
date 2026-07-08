@@ -1,12 +1,7 @@
 import type { ProviderCapabilities, ProviderStatus } from '@shared/ipc'
 import { Badge } from '../components/ui/badge'
+import { ProviderLogo } from '../components/ProviderLogo'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { cn } from '../lib/utils'
-
-const PROVIDER_DOT: Record<string, string> = {
-  codex: 'bg-provider-codex',
-  claude: 'bg-provider-claude'
-}
 
 interface OverviewScreenProps {
   providers: ProviderStatus[] | null
@@ -32,13 +27,7 @@ export function OverviewScreen({ providers, capabilities }: OverviewScreenProps)
             <CardHeader className="px-4">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2 text-[13px] font-semibold">
-                  <span
-                    aria-hidden
-                    className={cn(
-                      'size-2 rounded-full',
-                      PROVIDER_DOT[provider.id] ?? 'bg-muted-foreground'
-                    )}
-                  />
+                  <ProviderLogo providerId={provider.id} className="size-4" />
                   {provider.displayName}
                 </CardTitle>
                 {provider.detected ? (
