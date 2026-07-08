@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, Expand, Info, OctagonAlert, Pencil } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Expand, Info, OctagonAlert, Pencil } from 'lucide-react'
 import type { ResourceDocument } from '@shared/resource'
 import { ResourceEditor } from './editor/ResourceEditor'
 import { formatFieldValue } from '../lib/mask'
@@ -67,6 +67,7 @@ export function ResourceInspector({
   const [doc, setDoc] = useState<ResourceDocument | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
+  const [savedName, setSavedName] = useState<string | null>(null)
 
   const load = useCallback(() => {
     setDoc(null)
@@ -138,6 +139,7 @@ export function ResourceInspector({
           onSaved={(fresh) => {
             setDoc(fresh)
             setEditing(false)
+            setSavedName(fresh.name)
             onChanged?.()
           }}
           onReload={load}
@@ -202,6 +204,27 @@ export function ResourceInspector({
       ) : null}
         </>
       )}
+
+      {savedName ? (
+        <Dialog open onOpenChange={(open) => (!open ? setSavedName(null) : undefined)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle2 aria-hidden className="size-4 text-emerald-500" />
+                Changes saved
+              </DialogTitle>
+              <DialogDescription>
+                {savedName} was updated successfully. A backup of the previous version was created.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setSavedName(null)}>
+                OK
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </div>
   )
 }
