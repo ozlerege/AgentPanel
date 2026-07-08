@@ -53,6 +53,12 @@ function createWindow(): void {
         await shoot('projects')
         await clickNav('Settings')
         await shoot('settings')
+        await clickNav('Agents')
+        await shoot('agents')
+        await win.webContents.executeJavaScript(
+          "document.querySelector('main ul button')?.click()"
+        )
+        await shoot('agents-selected')
         app.quit()
       }, 1500)
     })
