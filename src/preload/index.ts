@@ -25,6 +25,9 @@ const api: DesktopApi = {
     detect: () => invoke('providers:detect'),
     capabilities: () => invoke('providers:capabilities')
   },
+  usage: {
+    list: () => invoke('usage:list')
+  },
   projects: {
     add: () => invoke('projects:add'),
     list: () => invoke('projects:list'),

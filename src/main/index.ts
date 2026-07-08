@@ -6,6 +6,7 @@ import { createDefaultRegistry } from './providers/registry'
 import { openDatabase } from './services/db'
 import { ProjectsStore } from './services/projects-store'
 import { ResourceService } from './services/resources'
+import { UsageService } from './services/usage'
 import { applySecurityPolicy } from './security'
 
 const DEV_SERVER_URL = process.env['ELECTRON_RENDERER_URL']
@@ -83,6 +84,7 @@ void app.whenReady().then(() => {
     projects,
     registry,
     resources: new ResourceService(registry, projects),
+    usage: new UsageService(),
     pickDirectory: async () => {
       const result = await dialog.showOpenDialog({
         title: 'Add project',

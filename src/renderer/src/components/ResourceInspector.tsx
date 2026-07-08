@@ -1,14 +1,59 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, Info, OctagonAlert } from 'lucide-react'
+import { AlertTriangle, Expand, Info, OctagonAlert } from 'lucide-react'
 import type { ResourceDocument } from '@shared/resource'
 import { formatFieldValue } from '../lib/mask'
 import { Badge } from './ui/badge'
+import { Button } from './ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from './ui/dialog'
 import { ProviderLogo } from './ProviderLogo'
 
 interface ResourceInspectorProps {
   resourceId: string
   kindLabel: string
   projectName?: string
+}
+
+interface FieldValueProps {
+  name: string
+  value: string
+}
+
+function FieldValue({ name, value }: FieldValueProps) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+      <span className="max-h-40 overflow-y-auto whitespace-pre-wrap break-words font-mono">
+        {value}
+      </span>
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Expand ${name}`}
+            title={`Expand ${name}`}
+          >
+            <Expand />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-h-[min(80vh,48rem)] grid-rows-[auto_minmax(0,1fr)] sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="break-all font-mono text-base">{name}</DialogTitle>
+            <DialogDescription>Full field value</DialogDescription>
+          </DialogHeader>
+          <pre className="min-h-0 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/50 p-3 font-mono text-[12px] leading-relaxed">
+            {value}
+          </pre>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
 }
 
 export function ResourceInspector({ resourceId, kindLabel, projectName }: ResourceInspectorProps) {
@@ -101,12 +146,15 @@ export function ResourceInspector({ resourceId, kindLabel, projectName }: Resour
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Fields
           </h3>
-          <dl className="mt-2 flex flex-col gap-2">
+          <dl className="mt-2 divide-y divide-border/60">
             {Object.entries(doc.fields).map(([key, value]) => (
-              <div key={key} className="grid grid-cols-[140px_1fr] gap-2 text-[12px]">
+              <div
+                key={key}
+                className="grid grid-cols-[140px_1fr] gap-4 py-2.5 text-[12px] first:pt-0 last:pb-0"
+              >
                 <dt className="truncate font-mono text-muted-foreground">{key}</dt>
-                <dd className="max-h-40 min-w-0 overflow-y-auto whitespace-pre-wrap break-words font-mono">
-                  {formatFieldValue(key, value)}
+                <dd className="min-w-0">
+                  <FieldValue name={key} value={formatFieldValue(key, value)} />
                 </dd>
               </div>
             ))}
