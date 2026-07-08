@@ -33,6 +33,8 @@ export interface NativeResource {
   scope: ResourceScope
   projectId?: string
   paths: string[]
+  /** Distinguishes entries inside a shared file (e.g. one MCP server name). */
+  entryKey?: string
 }
 
 export interface ResourceDraft {
