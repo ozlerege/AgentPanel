@@ -25,8 +25,8 @@ Additional M1 decisions:
 
 ## 1. Repo & stack
 
-- Electron (latest stable), React 19, TypeScript strict, Tailwind CSS + shadcn/ui, Zod, better-sqlite3, Vitest.
-- better-sqlite3 chosen over experimental `node:sqlite`; rebuilt for Electron via `@electron/rebuild` (handled by electron-vite/postinstall).
+- Electron (latest stable), React 19, TypeScript strict, Tailwind CSS + shadcn/ui, Zod, `node:sqlite`, Vitest.
+- **Amended 2026-07-08:** `node:sqlite` (`DatabaseSync`) instead of better-sqlite3. Verified working inside Electron 43 (bundled Node 24.18) and under system Node 25 for Vitest — no native-module ABI split between test and runtime environments, zero rebuild tooling.
 - Layout (electron-vite conventions):
 
 ```text
@@ -51,7 +51,7 @@ Proves the three riskiest bets (spec §18, Milestone 1) as Vitest suites before 
 
 Fixtures: sanitized copies modeled on real `~/.codex/config.toml` and `~/.claude/settings.json`, plus synthetic cases (comments in odd places, unknown fields, mixed indentation, trailing commas where legal, inline tables, dotted keys).
 
-1. **TOML round trip:** parse `config.toml` with comments, change one value, serialize. Primary candidate: Rust `toml_edit` via wasm bindings (e.g. `@rainbowatcher/toml-edit-js`). Fallback: span-splicing — parse to locate the exact byte range of the target value, replace only that range (byte-identical elsewhere by construction).
+1. **TOML round trip:** parse `config.toml` with comments, change one value, serialize. **Amended 2026-07-08:** span-splicing via `toml-eslint-parser` is the primary mechanism — parse to locate the exact byte range of the target value, replace only that range (byte-identical elsewhere by construction). Verified in a live smoke test for both top-level and nested keys. `@rainbowatcher/toml-edit-js` (wasm `toml_edit`) was evaluated and rejected: it cannot address top-level bare keys (`model = "..."` in Codex's `config.toml` fails with "Key Error: path key is empty").
 2. **Partial shared-file edits:** modify a single MCP server entry in `config.toml` and a single hook in `settings.json` without disturbing unrelated sections. JSON path: `jsonc-parser` `modify`/`applyEdits` (VS Code's own mechanism for surgical settings.json edits).
 3. **Form round trip:** convert a resource with unknown fields and comments into the normalized `ResourceDocument` (spec §11) and back with nothing lost (`native.raw` + `native.unknownFields` carry what the form doesn't model).
 
