@@ -1,4 +1,13 @@
-import { Archive, ChevronDown, Folder, LayoutGrid, Settings, SlidersHorizontal } from 'lucide-react'
+import {
+  Archive,
+  ChevronDown,
+  Folder,
+  LayoutGrid,
+  PanelLeftClose,
+  Settings,
+  SlidersHorizontal
+} from 'lucide-react'
+import { Button } from './ui/button'
 import type { ProviderCapabilities, ProviderStatus } from '@shared/ipc'
 import { cn } from '../lib/utils'
 import { buildNavSections, type NavSection } from '../navigation'
@@ -17,6 +26,8 @@ interface NavSidebarProps {
   providers: ProviderStatus[] | null
   selected: string
   onSelect(key: string): void
+  onToggle(): void
+  className?: string
 }
 
 interface ProviderNavSectionProps {
@@ -102,7 +113,14 @@ function NavItems({
   )
 }
 
-export function NavSidebar({ capabilities, providers, selected, onSelect }: NavSidebarProps) {
+export function NavSidebar({
+  capabilities,
+  providers,
+  selected,
+  onSelect,
+  onToggle,
+  className
+}: NavSidebarProps) {
   const sections = buildNavSections(capabilities)
 
   const statusFor = (providerId: string) =>
@@ -111,13 +129,25 @@ export function NavSidebar({ capabilities, providers, selected, onSelect }: NavS
   return (
     <nav
       aria-label="Main navigation"
-      className="flex w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-muted/50"
+      className={cn(
+        'flex h-full w-60 shrink-0 flex-col overflow-y-auto border-r border-border bg-muted/50',
+        className
+      )}
     >
       <div className="flex items-center gap-2 px-4 pb-4 pt-5">
         <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
           <SlidersHorizontal className="size-3.5" aria-hidden />
         </div>
-        <span className="text-[13px] font-semibold tracking-tight">Agent Control</span>
+        <span className="flex-1 text-[13px] font-semibold tracking-tight">Agent Control</span>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          aria-label="Hide sidebar"
+          onClick={onToggle}
+        >
+          <PanelLeftClose aria-hidden />
+        </Button>
       </div>
 
       <div className="flex flex-col gap-5 px-3 pb-4">
