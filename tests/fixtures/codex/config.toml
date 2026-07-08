@@ -1,0 +1,26 @@
+# Codex CLI configuration
+# Hand-maintained ordering. Do not sort keys.
+
+model = "gpt-5.5" # primary model
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Flags Agent Control does not understand and must never drop.
+[experimental]
+raw_agents = true
+undocumented_setting = "keep-me"
+
+[sandbox_workspace_write]
+network_access = true
+
+[mcp_servers.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+
+[mcp_servers.filesystem]
+# local files server
+command = "old-cmd"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/Users/example"]
+
+[mcp_servers.filesystem.env]
+FILESYSTEM_ROOT = "/Users/example"
