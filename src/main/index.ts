@@ -1,21 +1,26 @@
 import { writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { BrowserWindow, app, dialog } from 'electron'
 import { registerIpcHandlers } from './ipc/handlers'
 import { createDefaultRegistry } from './providers/registry'
+import { BackupService } from './services/backups'
 import { openDatabase } from './services/db'
 import { ProjectsStore } from './services/projects-store'
 import { ResourceService } from './services/resources'
+import { TransactionService } from './services/transactions'
 import { UsageService } from './services/usage'
 import { applySecurityPolicy } from './security'
 
 const DEV_SERVER_URL = process.env['ELECTRON_RENDERER_URL']
+const APP_ICON_PATH = join(app.getAppPath(), 'resources/app-icon.png')
 
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1280,
     height: 820,
     show: false,
+    icon: APP_ICON_PATH,
     webPreferences: {
       preload: join(import.meta.dirname, '../preload/index.cjs'),
       sandbox: true,
@@ -77,13 +82,29 @@ if (process.env['AC_CAPTURE']) app.disableHardwareAcceleration()
 applySecurityPolicy(DEV_SERVER_URL)
 
 void app.whenReady().then(() => {
+  if (process.platform === 'darwin') app.dock?.setIcon(APP_ICON_PATH)
+
   const db = openDatabase(join(app.getPath('userData'), 'agent-control.db'))
   const registry = createDefaultRegistry()
   const projects = new ProjectsStore(db)
+  const backups = new BackupService(db, join(app.getPath('userData'), 'backups'))
+  const transactions = new TransactionService(
+    {
+      roots: () => [
+        join(homedir(), '.codex'),
+        join(homedir(), '.claude'),
+        ...projects.list().map((project) => project.path)
+      ],
+      files: () => [join(homedir(), '.claude.json')]
+    },
+    backups
+  )
+  const resources = new ResourceService(registry, projects, transactions, backups)
   registerIpcHandlers({
+    backups,
     projects,
     registry,
-    resources: new ResourceService(registry, projects),
+    resources,
     usage: new UsageService(),
     pickDirectory: async () => {
       const result = await dialog.showOpenDialog({

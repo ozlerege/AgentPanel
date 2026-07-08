@@ -8,12 +8,14 @@ import {
 } from '../../shared/ipc'
 import { toAppError } from '../errors'
 import type { ProviderRegistry } from '../providers/registry'
+import type { BackupService } from '../services/backups'
 import type { ProjectsStore } from '../services/projects-store'
 import type { ResourceService } from '../services/resources'
 import type { UsageService } from '../services/usage'
 import { isTrustedUrl } from './trust'
 
 export interface HandlerDeps {
+  backups: BackupService
   projects: ProjectsStore
   registry: ProviderRegistry
   resources: ResourceService
@@ -81,4 +83,9 @@ export function registerIpcHandlers(deps: HandlerDeps): void {
   })
   handle('resources:list', (request) => deps.resources.list(request))
   handle('resources:read', (request) => deps.resources.read(request.id))
+  handle('resources:validate', (request) => deps.resources.validate(request))
+  handle('resources:preview', (request) => deps.resources.preview(request))
+  handle('resources:apply', (request) => deps.resources.apply(request))
+  handle('resources:restore', (request) => deps.resources.restore(request.backupId))
+  handle('backups:list', (request) => deps.backups.list(request.resourceId))
 }
