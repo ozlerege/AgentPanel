@@ -6,7 +6,25 @@ const MIGRATIONS: string[] = [
     name TEXT NOT NULL,
     path TEXT NOT NULL UNIQUE,
     added_at TEXT NOT NULL
-  );`
+  );`,
+  `CREATE TABLE backups (
+    id TEXT PRIMARY KEY,
+    resource_id TEXT NOT NULL,
+    resource_name TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE backup_files (
+    backup_id TEXT NOT NULL REFERENCES backups(id) ON DELETE CASCADE,
+    path TEXT NOT NULL,
+    content_file TEXT,
+    hash_before TEXT NOT NULL,
+    hash_after TEXT
+  );
+  CREATE INDEX backup_files_backup_id ON backup_files(backup_id);
+  CREATE INDEX backups_resource_id ON backups(resource_id);`
 ]
 
 export function openDatabase(location: string): DatabaseSync {
