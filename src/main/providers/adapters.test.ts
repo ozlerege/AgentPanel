@@ -7,6 +7,8 @@ import { createClaudeAdapter } from './claude'
 import { createCodexAdapter } from './codex'
 import { ProviderRegistry, createDefaultRegistry } from './registry'
 
+const FIXTURES = join(import.meta.dirname, '../../../tests/fixtures/discovery')
+
 let existingRoot: string
 
 beforeEach(() => {
@@ -39,23 +41,93 @@ describe('provider adapters', () => {
     })
   })
 
-  it('exposes provider-honest categories (commands are Claude-only)', () => {
+  it('exposes only categories discovery serves (spec: provider honesty)', () => {
     const codexCategories = createCodexAdapter().capabilities().categories
     const claudeCategories = createClaudeAdapter().capabilities().categories
-    expect(codexCategories.map((c) => c.id)).not.toContain('commands')
-    expect(claudeCategories.map((c) => c.id)).toContain('commands')
-    for (const categories of [codexCategories, claudeCategories]) {
-      expect(categories.map((c) => c.id)).toEqual(
-        expect.arrayContaining(['agents', 'skills', 'plugins', 'hooks', 'mcp-servers', 'instructions'])
-      )
+    expect(codexCategories.map((c) => c.id)).toEqual([
+      'agents',
+      'skills',
+      'mcp-servers',
+      'instructions'
+    ])
+    expect(claudeCategories.map((c) => c.id)).toEqual([
+      'agents',
+      'skills',
+      'commands',
+      'mcp-servers',
+      'instructions'
+    ])
+  })
+
+  it('throws not-implemented for milestone 3 operations', async () => {
+    const adapter = createCodexAdapter()
+    await expect(
+      adapter.validate({
+        provider: 'codex',
+        kind: 'agents',
+        scope: 'user',
+        fields: {}
+      })
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof AppOperationError && error.code === 'not-implemented'
+    )
+  })
+})
+
+describe('adapter discovery integration', () => {
+  const context = {
+    projects: [{ id: 'project-1', path: join(FIXTURES, 'project') }]
+  }
+
+  it('codex adapter discovers fixture resources across kinds and scopes', async () => {
+    const adapter = createCodexAdapter({ configRoot: join(FIXTURES, 'codex-user') })
+    const natives = await adapter.discover(context)
+    const count = (kind: string) => natives.filter((native) => native.kind === kind).length
+    expect(count('agents')).toBe(3)
+    expect(count('skills')).toBe(2)
+    expect(count('mcp-servers')).toBe(2)
+    expect(count('instructions')).toBe(2)
+    expect(natives.filter((native) => native.scope === 'project')).toHaveLength(1)
+    for (const native of natives) {
+      const doc = await adapter.parse(native)
+      expect(doc.provider).toBe('codex')
+      expect(doc.kind).toBe(native.kind)
     }
   })
 
-  it('throws not-implemented for milestone 2+ operations', async () => {
-    const adapter = createCodexAdapter()
-    await expect(adapter.discover({ projects: [] })).rejects.toSatisfy(
+  it('claude adapter discovers fixture resources across kinds and scopes', async () => {
+    const adapter = createClaudeAdapter({
+      configRoot: join(FIXTURES, 'claude-user'),
+      userMcpPath: join(FIXTURES, 'claude-user.json')
+    })
+    const natives = await adapter.discover(context)
+    const count = (kind: string) => natives.filter((native) => native.kind === kind).length
+    expect(count('agents')).toBe(4)
+    expect(count('skills')).toBe(3)
+    expect(count('commands')).toBe(4)
+    expect(count('mcp-servers')).toBe(3)
+    expect(count('instructions')).toBe(2)
+    expect(natives.filter((native) => native.scope === 'project')).toHaveLength(5)
+    for (const native of natives) {
+      const doc = await adapter.parse(native)
+      expect(doc.provider).toBe('claude')
+      expect(doc.kind).toBe(native.kind)
+    }
+  })
+
+  it('parse rejects an unknown resource kind', async () => {
+    const adapter = createCodexAdapter({ configRoot: join(FIXTURES, 'codex-user') })
+    await expect(
+      adapter.parse({
+        provider: 'codex',
+        kind: 'plugins',
+        scope: 'user',
+        paths: ['/tmp/x']
+      })
+    ).rejects.toSatisfy(
       (error: unknown) =>
-        error instanceof AppOperationError && error.code === 'not-implemented'
+        error instanceof AppOperationError && error.code === 'invalid-request'
     )
   })
 })
@@ -71,7 +143,7 @@ describe('ProviderRegistry', () => {
 
   it('default registry contains codex and claude', () => {
     const registry = createDefaultRegistry()
-    expect(registry.all().map((a) => a.id)).toEqual(['codex', 'claude'])
+    expect(registry.all().map((adapter) => adapter.id)).toEqual(['codex', 'claude'])
   })
 
   it('throws for an unknown provider id', () => {
