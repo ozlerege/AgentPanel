@@ -1,8 +1,9 @@
-import { Archive, Folder, LayoutGrid, Settings, SlidersHorizontal } from 'lucide-react'
+import { Archive, ChevronDown, Folder, LayoutGrid, Settings, SlidersHorizontal } from 'lucide-react'
 import type { ProviderCapabilities, ProviderStatus } from '@shared/ipc'
 import { cn } from '../lib/utils'
-import { buildNavSections } from '../navigation'
+import { buildNavSections, type NavSection } from '../navigation'
 import { ProviderLogo } from './ProviderLogo'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'
 
 const ITEM_ICONS: Record<string, typeof LayoutGrid> = {
   overview: LayoutGrid,
@@ -16,6 +17,89 @@ interface NavSidebarProps {
   providers: ProviderStatus[] | null
   selected: string
   onSelect(key: string): void
+}
+
+interface ProviderNavSectionProps {
+  section: NavSection
+  status?: ProviderStatus
+  selected: string
+  onSelect(key: string): void
+}
+
+function ProviderNavSection({ section, status, selected, onSelect }: ProviderNavSectionProps) {
+  return (
+    <Collapsible defaultOpen>
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="group flex w-full items-center gap-1.5 rounded-md px-2 pb-1.5 text-left focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+        >
+          <ProviderLogo providerId={section.providerId!} className="size-3" />
+          <span className="flex-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            {section.label}
+          </span>
+          {status ? (
+            <span className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
+              <span
+                aria-hidden
+                className={cn('size-1.5 rounded-full', status.detected ? 'bg-ok' : 'bg-border')}
+              />
+              {status.detected ? 'detected' : 'not found'}
+            </span>
+          ) : null}
+          <ChevronDown
+            aria-hidden
+            className="size-3 shrink-0 text-muted-foreground transition-transform group-data-[state=closed]:-rotate-90"
+          />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <NavItems items={section.items} selected={selected} onSelect={onSelect} />
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+function NavItems({
+  items,
+  selected,
+  onSelect
+}: {
+  items: NavSection['items']
+  selected: string
+  onSelect(key: string): void
+}) {
+  return (
+    <ul className="flex flex-col gap-px">
+      {items.map((item) => {
+        const Icon = ITEM_ICONS[item.key]
+        const active = selected === item.key
+        return (
+          <li key={item.key}>
+            <button
+              type="button"
+              aria-current={active ? 'page' : undefined}
+              onClick={() => onSelect(item.key)}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-md px-2 py-[5px] text-left text-[13px] transition-colors',
+                'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
+                active
+                  ? 'bg-accent font-medium text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
+              )}
+            >
+              {Icon ? (
+                <Icon className="size-3.5 shrink-0 opacity-70" aria-hidden />
+              ) : (
+                <span className="w-3.5 shrink-0" aria-hidden />
+              )}
+              {item.label}
+            </button>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 export function NavSidebar({ capabilities, providers, selected, onSelect }: NavSidebarProps) {
@@ -39,59 +123,28 @@ export function NavSidebar({ capabilities, providers, selected, onSelect }: NavS
       <div className="flex flex-col gap-5 px-3 pb-4">
         {sections.map((section) => {
           const status = section.providerId ? statusFor(section.providerId) : undefined
+          if (section.providerId) {
+            return (
+              <ProviderNavSection
+                key={section.key}
+                section={section}
+                status={status}
+                selected={selected}
+                onSelect={onSelect}
+              />
+            )
+          }
+
           return (
             <div key={section.key}>
               {section.label ? (
                 <div className="flex items-center justify-between px-2 pb-1.5">
                   <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                    {section.providerId ? (
-                      <ProviderLogo providerId={section.providerId} className="size-3" />
-                    ) : null}
                     {section.label}
                   </span>
-                  {status ? (
-                    <span className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
-                      <span
-                        aria-hidden
-                        className={cn(
-                          'size-1.5 rounded-full',
-                          status.detected ? 'bg-ok' : 'bg-border'
-                        )}
-                      />
-                      {status.detected ? 'detected' : 'not found'}
-                    </span>
-                  ) : null}
                 </div>
               ) : null}
-              <ul className="flex flex-col gap-px">
-                {section.items.map((item) => {
-                  const Icon = ITEM_ICONS[item.key]
-                  const active = selected === item.key
-                  return (
-                    <li key={item.key}>
-                      <button
-                        type="button"
-                        aria-current={active ? 'page' : undefined}
-                        onClick={() => onSelect(item.key)}
-                        className={cn(
-                          'flex w-full items-center gap-2 rounded-md px-2 py-[5px] text-left text-[13px] transition-colors',
-                          'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
-                          active
-                            ? 'bg-accent font-medium text-accent-foreground'
-                            : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
-                        )}
-                      >
-                        {Icon ? (
-                          <Icon className="size-3.5 shrink-0 opacity-70" aria-hidden />
-                        ) : (
-                          <span className="w-3.5 shrink-0" aria-hidden />
-                        )}
-                        {item.label}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
+              <NavItems items={section.items} selected={selected} onSelect={onSelect} />
             </div>
           )
         })}
