@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { appErrorSchema, ipcContract, projectSchema } from './ipc'
+import {
+  appErrorSchema,
+  ipcContract,
+  projectSchema,
+  resourceDocumentSchema,
+  resourceSummarySchema
+} from './ipc'
 
 describe('ipc contract schemas', () => {
   it('accepts a valid project', () => {
@@ -31,5 +37,48 @@ describe('ipc contract schemas', () => {
     }
     expect(appErrorSchema.parse(error)).toEqual(error)
     expect(appErrorSchema.safeParse({ message: 'x' }).success).toBe(false)
+  })
+
+  it('accepts an empty resources:list query and rejects an unsupported scope', () => {
+    expect(ipcContract['resources:list'].request.safeParse({}).success).toBe(true)
+    expect(
+      ipcContract['resources:list'].request.safeParse({
+        providerId: 'codex',
+        kind: 'agents',
+        scope: 'user'
+      }).success
+    ).toBe(true)
+    expect(
+      ipcContract['resources:list'].request.safeParse({ scope: 'directory' }).success
+    ).toBe(false)
+  })
+
+  it('requires an id for resources:read', () => {
+    expect(ipcContract['resources:read'].request.safeParse({}).success).toBe(false)
+    expect(ipcContract['resources:read'].request.safeParse({ id: 'abc' }).success).toBe(true)
+  })
+
+  it('accepts resource summary and document shapes', () => {
+    const summary = {
+      id: 'abc',
+      provider: 'claude',
+      kind: 'agents',
+      name: 'code-reviewer',
+      scope: 'user',
+      enabled: 'unsupported',
+      sourcePaths: ['/tmp/a.md'],
+      diagnostics: [
+        { severity: 'warning', message: 'Missing required field: description' }
+      ],
+      modifiedAt: '2026-07-08T12:00:00.000Z'
+    }
+    expect(resourceSummarySchema.safeParse(summary).success).toBe(true)
+    const document = {
+      ...summary,
+      fields: { model: 'sonnet' },
+      native: { format: 'markdown', raw: '---\n' }
+    }
+    expect(resourceDocumentSchema.safeParse(document).success).toBe(true)
+    expect(resourceDocumentSchema.safeParse(summary).success).toBe(false)
   })
 })

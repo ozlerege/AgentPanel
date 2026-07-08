@@ -5,6 +5,7 @@ import { registerIpcHandlers } from './ipc/handlers'
 import { createDefaultRegistry } from './providers/registry'
 import { openDatabase } from './services/db'
 import { ProjectsStore } from './services/projects-store'
+import { ResourceService } from './services/resources'
 import { applySecurityPolicy } from './security'
 
 const DEV_SERVER_URL = process.env['ELECTRON_RENDERER_URL']
@@ -70,9 +71,12 @@ applySecurityPolicy(DEV_SERVER_URL)
 
 void app.whenReady().then(() => {
   const db = openDatabase(join(app.getPath('userData'), 'agent-control.db'))
+  const registry = createDefaultRegistry()
+  const projects = new ProjectsStore(db)
   registerIpcHandlers({
-    projects: new ProjectsStore(db),
-    registry: createDefaultRegistry(),
+    projects,
+    registry,
+    resources: new ResourceService(registry, projects),
     pickDirectory: async () => {
       const result = await dialog.showOpenDialog({
         title: 'Add project',

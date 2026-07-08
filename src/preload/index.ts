@@ -31,6 +31,10 @@ const api: DesktopApi = {
     remove: async (id) => {
       await invoke('projects:remove', { id })
     }
+  },
+  resources: {
+    list: (query) => invoke('resources:list', query ?? {}),
+    read: (id) => invoke('resources:read', { id })
   }
 }
 

@@ -49,6 +49,46 @@ export const appErrorSchema = z.object({
 })
 export type AppError = z.infer<typeof appErrorSchema>
 
+export const resourceScopeSchema = z.enum(['user', 'project', 'directory'])
+
+export const diagnosticSchema = z.object({
+  severity: z.enum(['error', 'warning', 'info']),
+  message: z.string(),
+  path: z.string().optional()
+})
+
+export const resourceQuerySchema = z.object({
+  providerId: providerIdSchema.optional(),
+  kind: z.string().optional(),
+  scope: z.enum(['user', 'project']).optional(),
+  projectId: z.string().optional()
+})
+export type ResourceQuery = z.infer<typeof resourceQuerySchema>
+
+export const resourceSummarySchema = z.object({
+  id: z.string(),
+  provider: providerIdSchema,
+  kind: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  scope: resourceScopeSchema,
+  projectId: z.string().optional(),
+  enabled: z.union([z.boolean(), z.literal('unsupported')]),
+  sourcePaths: z.array(z.string()),
+  diagnostics: z.array(diagnosticSchema),
+  modifiedAt: z.string()
+})
+export type ResourceSummary = z.infer<typeof resourceSummarySchema>
+
+export const resourceDocumentSchema = resourceSummarySchema.extend({
+  fields: z.record(z.string(), z.unknown()),
+  native: z.object({
+    format: z.enum(['markdown', 'json', 'toml', 'yaml', 'directory', 'unknown']),
+    raw: z.string().optional(),
+    unknownFields: z.record(z.string(), z.unknown()).optional()
+  })
+})
+
 export const ipcContract = {
   'providers:detect': {
     request: z.undefined(),
@@ -69,6 +109,14 @@ export const ipcContract = {
   'projects:remove': {
     request: z.object({ id: z.string() }),
     response: z.undefined()
+  },
+  'resources:list': {
+    request: resourceQuerySchema,
+    response: z.array(resourceSummarySchema)
+  },
+  'resources:read': {
+    request: z.object({ id: z.string() }),
+    response: resourceDocumentSchema
   }
 } as const
 

@@ -9,11 +9,13 @@ import {
 import { toAppError } from '../errors'
 import type { ProviderRegistry } from '../providers/registry'
 import type { ProjectsStore } from '../services/projects-store'
+import type { ResourceService } from '../services/resources'
 import { isTrustedUrl } from './trust'
 
 export interface HandlerDeps {
   projects: ProjectsStore
   registry: ProviderRegistry
+  resources: ResourceService
   pickDirectory(): Promise<string | null>
 }
 
@@ -74,4 +76,6 @@ export function registerIpcHandlers(deps: HandlerDeps): void {
     deps.projects.remove(request.id)
     return undefined
   })
+  handle('resources:list', (request) => deps.resources.list(request))
+  handle('resources:read', (request) => deps.resources.read(request.id))
 }
