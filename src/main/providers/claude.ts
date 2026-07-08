@@ -1,12 +1,22 @@
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import type {
+  FileOperationPlan,
+  ResourceChange,
+  ResourceDraft,
+  ValidationResult
+} from '../../shared/resource'
 import { AppOperationError } from '../errors'
+import { applyClaudeMcpFormEdit, validateClaudeMcpContent } from './claude/edit'
 import { discoverClaudeAgents, parseClaudeAgent } from './claude/agents'
 import { discoverClaudeCommands, parseClaudeCommand } from './claude/commands'
 import { discoverClaudeMcpServers, parseClaudeMcpServer } from './claude/mcp-servers'
 import type { AdapterOptions } from './codex'
+import { applyMarkdownFormEdit, validateMarkdownContent } from './shared/edit'
 import { discoverInstructionsFile, parseInstructions } from './shared/instructions'
+import { decodeResourceId, type ResourceRef } from './shared/resource-id'
+import { readTextFile } from './shared/scan'
 import { discoverSkills, parseSkill } from './shared/skills'
 import type { ProviderAdapter } from './types'
 
@@ -15,8 +25,41 @@ export interface ClaudeAdapterOptions extends AdapterOptions {
   userMcpPath?: string
 }
 
-function notImplemented(operation: string): never {
-  throw new AppOperationError('not-implemented', operation, 'Editing arrives in Milestone 3.')
+function planContent(
+  ref: ResourceRef,
+  raw: string,
+  draft: ResourceDraft,
+  operation: string
+): string {
+  if (draft.raw !== undefined) {
+    if (ref.kind === 'mcp-servers') {
+      throw new AppOperationError(
+        'invalid-request',
+        operation,
+        'MCP server entries are form-edited only in Milestone 3'
+      )
+    }
+    return draft.raw
+  }
+  switch (ref.kind) {
+    case 'agents':
+    case 'skills':
+    case 'commands':
+    case 'instructions':
+      return applyMarkdownFormEdit(raw, ref.kind, draft.fields, draft.body, operation)
+    case 'mcp-servers': {
+      if (ref.entryKey === undefined) {
+        throw new AppOperationError(
+          'invalid-request',
+          operation,
+          'Cannot edit a malformed MCP configuration'
+        )
+      }
+      return applyClaudeMcpFormEdit(raw, ref.entryKey, draft.fields, operation)
+    }
+    default:
+      throw new AppOperationError('invalid-request', operation, `Unknown resource kind: ${ref.kind}`)
+  }
 }
 
 export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): ProviderAdapter {
@@ -93,11 +136,59 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): Provide
           )
       }
     },
-    async validate() {
-      return notImplemented('claude:validate')
+    async validate(draft): Promise<ValidationResult> {
+      const path = draft.sourcePath ?? ''
+      if (draft.raw === undefined) {
+        return {
+          ok: false,
+          diagnostics: [{ severity: 'error', message: 'Draft has no planned content' }]
+        }
+      }
+      switch (draft.kind) {
+        case 'agents':
+        case 'skills':
+        case 'commands':
+        case 'instructions':
+          return validateMarkdownContent(draft.kind, draft.raw, path)
+        case 'mcp-servers':
+          return draft.entryKey === undefined
+            ? {
+                ok: false,
+                diagnostics: [
+                  { severity: 'error', message: 'Cannot validate a malformed MCP configuration' }
+                ]
+              }
+            : validateClaudeMcpContent(draft.raw, draft.entryKey, path)
+        default:
+          return {
+            ok: false,
+            diagnostics: [{ severity: 'error', message: `Unknown resource kind: ${draft.kind}` }]
+          }
+      }
     },
-    async plan() {
-      return notImplemented('claude:plan')
+    async plan(change: ResourceChange): Promise<FileOperationPlan> {
+      if (change.kind !== 'update') {
+        throw new AppOperationError('not-implemented', 'claude:plan', 'Arrives in Milestone 4.')
+      }
+      if (!change.resourceId || !change.draft) {
+        throw new AppOperationError(
+          'invalid-request',
+          'claude:plan',
+          'Update needs a resource id and a draft'
+        )
+      }
+      const ref = decodeResourceId(change.resourceId)
+      const raw = readTextFile(ref.path)
+      if (raw === null) {
+        throw new AppOperationError(
+          'not-found',
+          'claude:plan',
+          `Source file could not be read: ${ref.path}`,
+          { path: ref.path }
+        )
+      }
+      const content = planContent(ref, raw, change.draft, 'claude:plan')
+      return { operations: [{ kind: 'write', path: ref.path, content }] }
     }
   }
 }

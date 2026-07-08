@@ -6,6 +6,7 @@ import { AppOperationError } from '../errors'
 import { createClaudeAdapter } from './claude'
 import { createCodexAdapter } from './codex'
 import { ProviderRegistry, createDefaultRegistry } from './registry'
+import { encodeResourceId } from './shared/resource-id'
 
 const FIXTURES = join(import.meta.dirname, '../../../tests/fixtures/discovery')
 
@@ -59,20 +60,6 @@ describe('provider adapters', () => {
     ])
   })
 
-  it('throws not-implemented for milestone 3 operations', async () => {
-    const adapter = createCodexAdapter()
-    await expect(
-      adapter.validate({
-        provider: 'codex',
-        kind: 'agents',
-        scope: 'user',
-        fields: {}
-      })
-    ).rejects.toSatisfy(
-      (error: unknown) =>
-        error instanceof AppOperationError && error.code === 'not-implemented'
-    )
-  })
 })
 
 describe('adapter discovery integration', () => {
@@ -148,5 +135,114 @@ describe('ProviderRegistry', () => {
 
   it('throws for an unknown provider id', () => {
     expect(() => new ProviderRegistry().get('codex')).toThrowError(AppOperationError)
+  })
+})
+
+describe('claude adapter plan/validate', () => {
+  const agentPath = join(FIXTURES, 'claude-user', 'agents', 'code-reviewer.md')
+  const resourceId = encodeResourceId({
+    provider: 'claude',
+    kind: 'agents',
+    scope: 'user',
+    path: agentPath
+  })
+  const adapter = createClaudeAdapter({
+    configRoot: join(FIXTURES, 'claude-user'),
+    userMcpPath: join(FIXTURES, 'claude-user.json')
+  })
+
+  it('plans a form update as a single full-content write', async () => {
+    const plan = await adapter.plan({
+      kind: 'update',
+      resourceId,
+      draft: {
+        provider: 'claude',
+        kind: 'agents',
+        scope: 'user',
+        sourcePath: agentPath,
+        fields: { name: 'renamed', description: 'Reviews pull requests for style issues' }
+      }
+    })
+    expect(plan.operations).toHaveLength(1)
+    expect(plan.operations[0]).toMatchObject({ kind: 'write', path: agentPath })
+    expect(plan.operations[0]?.content).toContain('name: renamed')
+    expect(plan.operations[0]?.content).toContain('meticulous')
+  })
+
+  it('validates planned content', async () => {
+    const good = await adapter.validate({
+      provider: 'claude',
+      kind: 'agents',
+      scope: 'user',
+      sourcePath: agentPath,
+      fields: {},
+      raw: '---\nname: a\ndescription: b\n---\nBody\n'
+    })
+    expect(good).toEqual({ ok: true, diagnostics: [] })
+    const bad = await adapter.validate({
+      provider: 'claude',
+      kind: 'agents',
+      scope: 'user',
+      sourcePath: agentPath,
+      fields: {},
+      raw: '---\nname: [broken\n---\nBody\n'
+    })
+    expect(bad.ok).toBe(false)
+  })
+
+  it('rejects source edits of mcp entries and non-update changes', async () => {
+    const mcpId = encodeResourceId({
+      provider: 'claude',
+      kind: 'mcp-servers',
+      scope: 'user',
+      path: join(FIXTURES, 'claude-user.json'),
+      entryKey: 'github'
+    })
+    await expect(
+      adapter.plan({
+        kind: 'update',
+        resourceId: mcpId,
+        draft: {
+          provider: 'claude',
+          kind: 'mcp-servers',
+          scope: 'user',
+          entryKey: 'github',
+          fields: {},
+          raw: '{}'
+        }
+      })
+    ).rejects.toMatchObject({ code: 'invalid-request' })
+    await expect(adapter.plan({ kind: 'create' })).rejects.toMatchObject({
+      code: 'not-implemented'
+    })
+  })
+})
+
+describe('codex adapter plan/validate', () => {
+  const adapter = createCodexAdapter({ configRoot: join(FIXTURES, 'codex-user') })
+
+  it('plans an mcp env form update via the shared config file', async () => {
+    const configPath = join(FIXTURES, 'codex-user', 'config.toml')
+    const resourceId = encodeResourceId({
+      provider: 'codex',
+      kind: 'mcp-servers',
+      scope: 'user',
+      path: configPath,
+      entryKey: 'github'
+    })
+    const plan = await adapter.plan({
+      kind: 'update',
+      resourceId,
+      draft: {
+        provider: 'codex',
+        kind: 'mcp-servers',
+        scope: 'user',
+        entryKey: 'github',
+        sourcePath: configPath,
+        fields: { command: 'bunx' }
+      }
+    })
+    expect(plan.operations[0]?.path).toBe(configPath)
+    expect(plan.operations[0]?.content).toContain('command = "bunx"')
   })
 })
