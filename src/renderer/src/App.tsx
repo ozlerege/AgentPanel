@@ -6,6 +6,7 @@ import { NavSidebar } from './components/NavSidebar'
 import { Button } from './components/ui/button'
 import { ThemeProvider } from './lib/theme'
 import { cn } from './lib/utils'
+import { BackupsScreen } from './screens/BackupsScreen'
 import { OverviewScreen } from './screens/OverviewScreen'
 import { ProjectsScreen } from './screens/ProjectsScreen'
 import { ResourceListScreen } from './screens/ResourceListScreen'
@@ -33,15 +34,7 @@ function Screen({ selected, capabilities, providers, usage, usageLoading, onRefr
   }
   if (selected === 'projects') return <ProjectsScreen />
   if (selected === 'settings') return <SettingsScreen />
-  if (selected === 'backups') {
-    return (
-      <EmptyState
-        title="No backups yet"
-        description="Agent Control snapshots every file before changing it. Restorable backups will be listed here."
-        milestone="Milestone 3"
-      />
-    )
-  }
+  if (selected === 'backups') return <BackupsScreen />
   if (selected.startsWith('provider/')) {
     const [, providerId, categoryId] = selected.split('/')
     const provider = capabilities.find((c) => c.providerId === providerId)
