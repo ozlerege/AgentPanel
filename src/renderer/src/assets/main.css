@@ -8,9 +8,9 @@
  *
  * Register: precise macOS developer utility. System sans carries the UI;
  * JetBrains Mono carries everything that IS configuration (paths, provider
- * ids, config values) — the app's identity accent. One petrol-teal primary,
- * everything else quiet neutrals. Provider hues are used for status dots
- * only, always beside a text label, never as the sole signal.
+ * ids, config values) — the app's identity accent. One warm-gold primary
+ * (#DBAD6A), everything else quiet neutrals. Provider hues are used for
+ * status dots only, always beside a text label, never as the sole signal.
  */
 
 :root {
@@ -20,8 +20,8 @@
   --card-foreground: oklch(0.235 0.01 250);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.235 0.01 250);
-  --primary: oklch(0.46 0.085 200);
-  --primary-foreground: oklch(0.985 0.005 200);
+  --primary: #dbad6a;
+  --primary-foreground: oklch(0.26 0.035 80);
   --secondary: oklch(0.955 0.004 240);
   --secondary-foreground: oklch(0.32 0.01 250);
   --muted: oklch(0.955 0.004 240);
@@ -32,7 +32,7 @@
   --destructive-foreground: oklch(0.985 0.005 27);
   --border: oklch(0.905 0.005 240);
   --input: oklch(0.905 0.005 240);
-  --ring: oklch(0.55 0.09 200);
+  --ring: oklch(0.66 0.1 80);
   --provider-codex: oklch(0.58 0.11 235);
   --provider-claude: oklch(0.62 0.13 50);
   --ok: oklch(0.58 0.12 155);
@@ -46,8 +46,8 @@
   --card-foreground: oklch(0.92 0.005 240);
   --popover: oklch(0.235 0.008 250);
   --popover-foreground: oklch(0.92 0.005 240);
-  --primary: oklch(0.72 0.09 200);
-  --primary-foreground: oklch(0.18 0.02 200);
+  --primary: #dbad6a;
+  --primary-foreground: oklch(0.22 0.03 80);
   --secondary: oklch(0.27 0.008 250);
   --secondary-foreground: oklch(0.85 0.005 240);
   --muted: oklch(0.265 0.008 250);
@@ -58,7 +58,7 @@
   --destructive-foreground: oklch(0.98 0.005 27);
   --border: oklch(0.31 0.008 250);
   --input: oklch(0.31 0.008 250);
-  --ring: oklch(0.66 0.09 200);
+  --ring: #dbad6a;
   --provider-codex: oklch(0.66 0.1 235);
   --provider-claude: oklch(0.7 0.12 50);
   --ok: oklch(0.68 0.11 155);
