@@ -5,6 +5,7 @@ import { NavSidebar } from './components/NavSidebar'
 import { ThemeProvider } from './lib/theme'
 import { OverviewScreen } from './screens/OverviewScreen'
 import { ProjectsScreen } from './screens/ProjectsScreen'
+import { ResourceListScreen } from './screens/ResourceListScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 
 interface ScreenProps {
@@ -32,11 +33,21 @@ function Screen({ selected, capabilities, providers }: ScreenProps) {
     const [, providerId, categoryId] = selected.split('/')
     const provider = capabilities.find((c) => c.providerId === providerId)
     const category = provider?.categories.find((c) => c.id === categoryId)
+    if (provider && category) {
+      return (
+        <ResourceListScreen
+          key={selected}
+          providerId={provider.providerId}
+          kind={category.id}
+          title={`${provider.displayName} ${category.label}`}
+          kindLabel={category.label}
+        />
+      )
+    }
     return (
       <EmptyState
-        title={`${provider?.displayName ?? ''} ${category?.label ?? ''}`.trim()}
-        description="Everything this provider keeps on disk will be listed and inspectable here, without opening a single config file."
-        milestone="Milestone 2"
+        title="Unknown category"
+        description="Pick a section from the sidebar."
       />
     )
   }
