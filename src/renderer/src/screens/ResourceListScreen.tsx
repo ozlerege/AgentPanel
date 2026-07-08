@@ -7,6 +7,13 @@ import { ResourceInspector } from '../components/ResourceInspector'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select'
 import { cn } from '../lib/utils'
 
 interface ResourceListScreenProps {
@@ -91,20 +98,20 @@ export function ResourceListScreen({ providerId, kind, title, kindLabel }: Resou
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <select
-            aria-label="Filter by scope"
-            className="h-8 rounded-md border border-border bg-transparent px-2 text-[12px] text-foreground"
-            value={scopeFilter}
-            onChange={(event) => setScopeFilter(event.target.value)}
-          >
-            <option value="all">All scopes</option>
-            <option value="user">User</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
+          <Select value={scopeFilter} onValueChange={setScopeFilter}>
+            <SelectTrigger size="sm" aria-label="Filter by scope" className="text-[12px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All scopes</SelectItem>
+              <SelectItem value="user">User</SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         {error ? (
@@ -177,6 +184,7 @@ export function ResourceListScreen({ providerId, kind, title, kindLabel }: Resou
             resourceId={selected.id}
             kindLabel={kindLabel}
             projectName={projectName(selected.projectId)}
+            onChanged={refresh}
           />
         ) : (
           <EmptyState

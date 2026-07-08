@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import { AlertTriangle, Expand, Info, OctagonAlert } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { AlertTriangle, Expand, Info, OctagonAlert, Pencil } from 'lucide-react'
 import type { ResourceDocument } from '@shared/resource'
+import { ResourceEditor } from './editor/ResourceEditor'
 import { formatFieldValue } from '../lib/mask'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -18,6 +19,7 @@ interface ResourceInspectorProps {
   resourceId: string
   kindLabel: string
   projectName?: string
+  onChanged?: () => void
 }
 
 interface FieldValueProps {
@@ -56,26 +58,29 @@ function FieldValue({ name, value }: FieldValueProps) {
   )
 }
 
-export function ResourceInspector({ resourceId, kindLabel, projectName }: ResourceInspectorProps) {
+export function ResourceInspector({
+  resourceId,
+  kindLabel,
+  projectName,
+  onChanged
+}: ResourceInspectorProps) {
   const [doc, setDoc] = useState<ResourceDocument | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
+  const load = useCallback(() => {
     setDoc(null)
     setError(null)
     window.desktopApi.resources
       .read(resourceId)
-      .then((loaded) => {
-        if (!cancelled) setDoc(loaded)
-      })
-      .catch((cause: unknown) => {
-        if (!cancelled) setError(cause instanceof Error ? cause.message : String(cause))
-      })
-    return () => {
-      cancelled = true
-    }
+      .then(setDoc)
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
   }, [resourceId])
+
+  useEffect(() => {
+    setEditing(false)
+    load()
+  }, [load])
 
   if (error) {
     return (
@@ -98,6 +103,15 @@ export function ResourceInspector({ resourceId, kindLabel, projectName }: Resour
           <Badge variant="secondary">
             {doc.scope === 'user' ? 'User' : (projectName ?? 'Project')}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            onClick={() => setEditing(true)}
+            disabled={editing || doc.native.raw === undefined}
+          >
+            <Pencil aria-hidden /> Edit
+          </Button>
         </div>
         {doc.description ? (
           <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
@@ -116,7 +130,21 @@ export function ResourceInspector({ resourceId, kindLabel, projectName }: Resour
         </p>
       </header>
 
-      {doc.diagnostics.length > 0 ? (
+      {editing ? (
+        <ResourceEditor
+          key={`${doc.id}:${doc.modifiedAt}:${doc.fingerprints[0]?.hash ?? ''}`}
+          doc={doc}
+          onCancel={() => setEditing(false)}
+          onSaved={(fresh) => {
+            setDoc(fresh)
+            setEditing(false)
+            onChanged?.()
+          }}
+          onReload={load}
+        />
+      ) : (
+        <>
+          {doc.diagnostics.length > 0 ? (
         <section className="border-b border-border px-6 py-4">
           <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Diagnostics
@@ -172,6 +200,8 @@ export function ResourceInspector({ resourceId, kindLabel, projectName }: Resour
           </pre>
         </section>
       ) : null}
+        </>
+      )}
     </div>
   )
 }
