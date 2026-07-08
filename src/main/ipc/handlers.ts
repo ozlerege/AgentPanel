@@ -1,0 +1,77 @@
+import { ipcMain } from 'electron'
+import {
+  ipcContract,
+  type IpcChannel,
+  type IpcEnvelope,
+  type IpcRequest,
+  type IpcResponse
+} from '../../shared/ipc'
+import { toAppError } from '../errors'
+import type { ProviderRegistry } from '../providers/registry'
+import type { ProjectsStore } from '../services/projects-store'
+import { isTrustedUrl } from './trust'
+
+export interface HandlerDeps {
+  projects: ProjectsStore
+  registry: ProviderRegistry
+  pickDirectory(): Promise<string | null>
+}
+
+function handle<C extends IpcChannel>(
+  channel: C,
+  handler: (request: IpcRequest<C>) => Promise<IpcResponse<C>> | IpcResponse<C>
+): void {
+  ipcMain.handle(
+    channel,
+    async (event, payload: unknown): Promise<IpcEnvelope<IpcResponse<C>>> => {
+      const senderUrl = event.senderFrame?.url ?? ''
+      if (!isTrustedUrl(senderUrl, process.env['ELECTRON_RENDERER_URL'])) {
+        return {
+          ok: false,
+          error: {
+            code: 'permission',
+            operation: channel,
+            message: `Rejected IPC from untrusted sender: ${senderUrl || '(unknown)'}`,
+            changed: false
+          }
+        }
+      }
+      const parsed = ipcContract[channel].request.safeParse(payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: {
+            code: 'invalid-request',
+            operation: channel,
+            message: parsed.error.issues.map((issue) => issue.message).join('; '),
+            changed: false
+          }
+        }
+      }
+      try {
+        const data = await handler(parsed.data as IpcRequest<C>)
+        return { ok: true, data }
+      } catch (error) {
+        return { ok: false, error: toAppError(channel, error) }
+      }
+    }
+  )
+}
+
+export function registerIpcHandlers(deps: HandlerDeps): void {
+  handle('providers:detect', async () =>
+    Promise.all(deps.registry.all().map((adapter) => adapter.detect()))
+  )
+  handle('providers:capabilities', () =>
+    deps.registry.all().map((adapter) => adapter.capabilities())
+  )
+  handle('projects:add', async () => {
+    const directory = await deps.pickDirectory()
+    return directory === null ? null : deps.projects.add(directory)
+  })
+  handle('projects:list', () => deps.projects.list())
+  handle('projects:remove', (request) => {
+    deps.projects.remove(request.id)
+    return undefined
+  })
+}
