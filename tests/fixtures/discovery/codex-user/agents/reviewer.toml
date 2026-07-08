@@ -1,0 +1,4 @@
+# Generated agent
+name = "reviewer"
+description = "Reviews pull requests"
+developer_instructions = "Be meticulous."

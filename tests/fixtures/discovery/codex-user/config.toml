@@ -1,0 +1,9 @@
+# Codex configuration
+model = "gpt-5.5"
+
+[mcp_servers.github]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github", "--access-token=sbp_secret1234567890"]
+
+[mcp_servers.incomplete]
+args = ["--flag"]
