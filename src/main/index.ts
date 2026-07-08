@@ -1,3 +1,4 @@
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { BrowserWindow, app, dialog } from 'electron'
 import { registerIpcHandlers } from './ipc/handlers'
@@ -23,12 +24,47 @@ function createWindow(): void {
 
   win.on('ready-to-show', () => win.show())
 
+  // Debug aid: AC_CAPTURE=/path.png captures each screen (and both themes
+  // for Overview) as /path.<screen>.png, then exits.
+  const capturePath = process.env['AC_CAPTURE']
+  if (capturePath) {
+    win.webContents.setBackgroundThrottling(false)
+    win.webContents.once('did-finish-load', () => {
+      setTimeout(async () => {
+        const shoot = async (name: string): Promise<void> => {
+          await new Promise((resolve) => setTimeout(resolve, 400))
+          const image = await win.webContents.capturePage()
+          await writeFile(capturePath.replace('.png', `.${name}.png`), image.toPNG())
+        }
+        const clickNav = (label: string): Promise<void> =>
+          win.webContents.executeJavaScript(
+            `[...document.querySelectorAll('nav button')].find((b) => b.textContent.trim() === ${JSON.stringify(label)})?.click()`
+          )
+        await shoot('overview-dark')
+        await win.webContents.executeJavaScript(
+          "document.documentElement.classList.remove('dark')"
+        )
+        await shoot('overview-light')
+        await win.webContents.executeJavaScript(
+          "document.documentElement.classList.add('dark')"
+        )
+        await clickNav('Projects')
+        await shoot('projects')
+        await clickNav('Settings')
+        await shoot('settings')
+        app.quit()
+      }, 1500)
+    })
+  }
+
   if (DEV_SERVER_URL) {
     void win.loadURL(DEV_SERVER_URL)
   } else {
     void win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
   }
 }
+
+if (process.env['AC_CAPTURE']) app.disableHardwareAcceleration()
 
 applySecurityPolicy(DEV_SERVER_URL)
 

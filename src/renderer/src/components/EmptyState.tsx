@@ -6,14 +6,16 @@ interface EmptyStateProps {
 
 export function EmptyState({ title, description, milestone }: EmptyStateProps) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-      <h2 className="text-base font-semibold">{title}</h2>
-      <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
-      {milestone ? (
-        <span className="mt-2 rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">
-          Planned for {milestone}
-        </span>
-      ) : null}
+    <div className="flex h-full items-center justify-center p-8">
+      <div className="flex max-w-sm flex-col items-center gap-2 text-center">
+        {milestone ? (
+          <span className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            {milestone}
+          </span>
+        ) : null}
+        <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
+        <p className="text-[13px] leading-relaxed text-muted-foreground">{description}</p>
+      </div>
     </div>
   )
 }

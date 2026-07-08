@@ -22,6 +22,15 @@ function isTheme(value: string | null): value is Theme {
   return value === 'light' || value === 'dark' || value === 'system'
 }
 
+export function applyStoredThemeBeforePaint(): void {
+  const stored = localStorage.getItem('agent-control-theme')
+  const theme: Theme = isTheme(stored) ? stored : 'system'
+  const dark =
+    theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.classList.toggle('dark', dark)
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem('agent-control-theme')

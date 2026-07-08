@@ -1,4 +1,5 @@
 import type { ProviderCapabilities } from '@shared/ipc'
+import type { ProviderId } from '@shared/resource'
 
 export interface NavItem {
   key: string
@@ -8,6 +9,7 @@ export interface NavItem {
 export interface NavSection {
   key: string
   label: string | null
+  providerId?: ProviderId
   items: NavItem[]
 }
 
@@ -21,6 +23,7 @@ export function buildNavSections(capabilities: ProviderCapabilities[]): NavSecti
     ...capabilities.map((provider) => ({
       key: `provider/${provider.providerId}`,
       label: provider.displayName,
+      providerId: provider.providerId,
       items: provider.categories.map((category) => ({
         key: `provider/${provider.providerId}/${category.id}`,
         label: category.label
@@ -28,7 +31,7 @@ export function buildNavSections(capabilities: ProviderCapabilities[]): NavSecti
     })),
     {
       key: 'app',
-      label: null,
+      label: 'Application',
       items: [
         { key: 'projects', label: 'Projects' },
         { key: 'backups', label: 'Backups' },
