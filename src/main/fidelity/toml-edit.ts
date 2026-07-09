@@ -28,6 +28,13 @@ export class TomlTableNotFoundError extends Error {
   }
 }
 
+export class TomlTableExistsError extends Error {
+  constructor(path: Array<string | number>) {
+    super(`TOML table already exists: ${path.join('.')}`)
+    this.name = 'TomlTableExistsError'
+  }
+}
+
 export type TomlValue = string | number | boolean | string[] | Record<string, string>
 
 function keySegments(key: { keys: TomlKeySegment[] }): string[] {
@@ -112,6 +119,10 @@ function bareOrQuotedKey(key: string): string {
   return /^[A-Za-z0-9_-]+$/.test(key) ? key : escapeTomlString(key)
 }
 
+function tableHeader(tablePath: Array<string | number>): string {
+  return `[${tablePath.map((segment) => bareOrQuotedKey(String(segment))).join('.')}]\n`
+}
+
 export function serializeTomlValue(value: TomlValue): string {
   if (typeof value === 'string') return escapeTomlString(value)
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
@@ -169,6 +180,50 @@ export function setTomlValue(
   const needsLeadingNewline = offset === source.length && source.length > 0 && !source.endsWith('\n')
   const line = `${bareOrQuotedKey(key)} = ${serialized}\n`
   return source.slice(0, offset) + (needsLeadingNewline ? '\n' : '') + line + source.slice(offset)
+}
+
+export function appendTomlTable(
+  source: string,
+  tablePath: Array<string | number>,
+  keyValues: Array<[string, TomlValue]>
+): string {
+  if (hasTomlTable(source, tablePath) || hasTomlKeyValue(source, tablePath)) {
+    throw new TomlTableExistsError(tablePath)
+  }
+  const prefix = source.length === 0 ? '' : source.endsWith('\n') ? '\n' : '\n\n'
+  const body = keyValues
+    .map(([key, value]) => `${bareOrQuotedKey(key)} = ${serializeTomlValue(value)}\n`)
+    .join('')
+  return `${source}${prefix}${tableHeader(tablePath)}${body}`
+}
+
+function isDescendantTable(
+  candidate: Array<string | number>,
+  parent: Array<string | number>
+): boolean {
+  return (
+    candidate.length > parent.length &&
+    parent.every((segment, index) => String(candidate[index]) === String(segment))
+  )
+}
+
+export function deleteTomlTable(source: string, tablePath: Array<string | number>): string {
+  const root = topLevel(source)
+  if (!root?.body) throw new TomlTableNotFoundError(tablePath)
+  const tables = root.body.filter((node) => node.type === 'TOMLTable' && node.key)
+  const index = tables.findIndex(
+    (node) => node.key && keySegments(node.key).join('\0') === tablePath.map(String).join('\0')
+  )
+  if (index === -1) throw new TomlTableNotFoundError(tablePath)
+  const target = tables[index]
+  const start = source.lastIndexOf('\n', target.range[0] - 1) + 1
+  let end = source.length
+  for (const next of tables.slice(index + 1)) {
+    if (!next.key || isDescendantTable(keySegments(next.key), tablePath)) continue
+    end = source.lastIndexOf('\n', next.range[0] - 1) + 1
+    break
+  }
+  return source.slice(0, start) + source.slice(end)
 }
 
 /** Remove the whole line of `key` in the table at `tablePath` (incl. trailing comment). */

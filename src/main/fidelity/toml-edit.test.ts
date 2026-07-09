@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { changedLineNumbers } from '../../../tests/helpers/diff'
 import {
+  appendTomlTable,
+  deleteTomlTable,
   deleteTomlKey,
   editTomlValue,
   hasTomlKeyValue,
@@ -10,6 +12,7 @@ import {
   serializeTomlValue,
   setTomlValue,
   TomlKeyNotFoundError,
+  TomlTableExistsError,
   TomlTableNotFoundError
 } from './toml-edit'
 
@@ -134,6 +137,44 @@ describe('deleteTomlKey', () => {
   it('throws TomlKeyNotFoundError for a missing key', () => {
     expect(() => deleteTomlKey(MCP, ['mcp_servers', 'github'], 'nope')).toThrowError(
       TomlKeyNotFoundError
+    )
+  })
+})
+
+describe('appendTomlTable', () => {
+  it('appends a table to empty and non-empty sources byte-exactly', () => {
+    expect(
+      appendTomlTable('', ['mcp_servers', 'new'], [
+        ['command', 'bunx'],
+        ['args', ['-y', 'server']]
+      ])
+    ).toBe('[mcp_servers.new]\ncommand = "bunx"\nargs = ["-y", "server"]\n')
+
+    expect(appendTomlTable('model = "gpt-5.5"\n', ['mcp_servers', 'new'], [['command', 'bunx']])).toBe(
+      'model = "gpt-5.5"\n\n[mcp_servers.new]\ncommand = "bunx"\n'
+    )
+  })
+
+  it('rejects an existing table', () => {
+    expect(() => appendTomlTable(MCP, ['mcp_servers', 'github'], [['command', 'x']])).toThrowError(
+      TomlTableExistsError
+    )
+  })
+})
+
+describe('deleteTomlTable', () => {
+  it('removes a table and its sub-tables byte-exactly', () => {
+    expect(deleteTomlTable(MCP, ['mcp_servers', 'github'])).toBe(`# codex config
+model = "gpt-5.5"
+
+[other]
+key = "value"
+`)
+  })
+
+  it('throws TomlTableNotFoundError for a missing table', () => {
+    expect(() => deleteTomlTable(MCP, ['mcp_servers', 'missing'])).toThrowError(
+      TomlTableNotFoundError
     )
   })
 })

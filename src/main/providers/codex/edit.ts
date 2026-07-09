@@ -2,6 +2,8 @@ import { getStaticTOMLValue, parseTOML } from 'toml-eslint-parser'
 import type { Diagnostic, ValidationResult } from '../../../shared/resource'
 import { AppOperationError } from '../../errors'
 import {
+  appendTomlTable,
+  deleteTomlTable,
   deleteTomlKey,
   editTomlValue,
   hasTomlKeyValue,
@@ -109,6 +111,42 @@ export function applyCodexMcpFormEdit(
     out = applyEnvEdit(out, entryPath, entry, form.env)
   }
   return out
+}
+
+export function createCodexMcpEntry(
+  source: string,
+  entryKey: string,
+  fields: Record<string, unknown>,
+  operation: string
+): string {
+  if (hasTomlTable(source, ['mcp_servers', entryKey])) {
+    throw new AppOperationError('conflict', operation, `MCP server entry already exists: ${entryKey}`)
+  }
+  const form = mcpFormFields(fields, operation)
+  if (form.command === undefined || form.command.trim() === '') {
+    throw new AppOperationError('invalid-request', operation, 'MCP server command is required')
+  }
+  const keyValues: Array<[string, string | string[] | Record<string, string>]> = [
+    ['command', form.command]
+  ]
+  if (form.args !== undefined) keyValues.push(['args', form.args])
+  if (form.env !== undefined) keyValues.push(['env', form.env])
+  return appendTomlTable(source, ['mcp_servers', entryKey], keyValues)
+}
+
+export function deleteCodexMcpEntry(
+  source: string,
+  entryKey: string,
+  operation: string
+): string {
+  try {
+    return deleteTomlTable(source, ['mcp_servers', entryKey])
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TomlTableNotFoundError') {
+      throw new AppOperationError('not-found', operation, `MCP server entry not found: ${entryKey}`)
+    }
+    throw error
+  }
 }
 
 /** Validate proposed Codex agent TOML content. */

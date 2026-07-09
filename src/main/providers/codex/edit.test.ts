@@ -3,6 +3,8 @@ import { AppOperationError } from '../../errors'
 import {
   applyCodexAgentFormEdit,
   applyCodexMcpFormEdit,
+  createCodexMcpEntry,
+  deleteCodexMcpEntry,
   validateCodexAgentContent,
   validateCodexMcpContent
 } from './edit'
@@ -108,6 +110,36 @@ describe('applyCodexMcpFormEdit', () => {
     } catch (error) {
       expect((error as AppOperationError).code).toBe('not-found')
     }
+  })
+})
+
+describe('createCodexMcpEntry / deleteCodexMcpEntry', () => {
+  it('creates a new MCP entry from form fields', () => {
+    const result = createCodexMcpEntry(CONFIG, 'new-server', {
+      command: 'bunx',
+      args: ['-y', 'server'],
+      env: { TOKEN: 'abc' }
+    }, 'op')
+    expect(result).toContain('[mcp_servers.new-server]\n')
+    expect(result).toContain('command = "bunx"\n')
+    expect(result).toContain('args = ["-y", "server"]\n')
+    expect(result).toContain('env = { TOKEN = "abc" }\n')
+  })
+
+  it('rejects missing command and existing entries', () => {
+    expect(() => createCodexMcpEntry(CONFIG, 'new-server', {}, 'op')).toThrowError(
+      expect.objectContaining({ code: 'invalid-request' })
+    )
+    expect(() => createCodexMcpEntry(CONFIG, 'github', { command: 'x' }, 'op')).toThrowError(
+      expect.objectContaining({ code: 'conflict' })
+    )
+  })
+
+  it('deletes an MCP entry and its env table', () => {
+    const result = deleteCodexMcpEntry(CONFIG, 'github', 'op')
+    expect(result).not.toContain('[mcp_servers.github]')
+    expect(result).not.toContain('[mcp_servers.github.env]')
+    expect(result).toContain('[mcp_servers.inline]')
   })
 })
 
