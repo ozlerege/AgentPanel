@@ -103,7 +103,7 @@ export function ResourceInspector({
     )
   }
   if (!doc) {
-    return <p className="p-6 text-[13px] text-muted-foreground">Loading…</p>
+    return <p role="status" className="p-6 text-[13px] text-muted-foreground">Loading…</p>
   }
   const scopeLabel = doc.scope === 'user' ? 'User' : (projectName ?? 'Project')
 
@@ -240,7 +240,7 @@ export function ResourceInspector({
                 <CheckCircle2 aria-hidden className="size-4 text-emerald-500" />
                 Changes saved
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription role="status">
                 {savedName} was updated successfully. A backup of the previous version was created.
               </DialogDescription>
             </DialogHeader>

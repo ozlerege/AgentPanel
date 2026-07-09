@@ -67,7 +67,7 @@ export function PreviewDialog({
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
           {preview.conflicts.length > 0 ? (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-[12px]">
+            <div role="alert" className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-[12px]">
               <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0 text-amber-500" />
               <span>
                 Changed outside Agent Control since you loaded it: {preview.conflicts.join(', ')}.

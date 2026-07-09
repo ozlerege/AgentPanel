@@ -91,13 +91,14 @@ function ActivityChart({ days, providerId }: { days: DailyUsage[]; providerId: s
   return (
     <div
       className="grid h-28 grid-cols-14 items-end gap-1 rounded-lg bg-muted/35 px-2 pt-3 pb-2"
+      role="img"
       aria-label="Fourteen day token and session activity"
     >
       {days.map((day, index) => {
         const height = day.tokens === 0 ? 2 : Math.max(8, Math.round((day.tokens / maxTokens) * 76))
         const label = `${dateFormat.format(new Date(`${day.date}T12:00:00`))}: ${formatTokens(day.tokens)} tokens, ${day.sessions} sessions`
         return (
-          <div key={day.date} className="flex h-full min-w-0 flex-col items-center justify-end gap-1" title={label}>
+          <div key={day.date} className="flex h-full min-w-0 flex-col items-center justify-end gap-1" title={label} aria-hidden>
             <div className="flex min-h-0 w-full flex-1 items-end justify-center">
               <div
                 className={cn(
@@ -105,7 +106,6 @@ function ActivityChart({ days, providerId }: { days: DailyUsage[]; providerId: s
                   providerId === 'codex' ? 'bg-provider-codex' : 'bg-provider-claude'
                 )}
                 style={{ height }}
-                aria-label={label}
               />
             </div>
             <span className="font-mono text-[8px] leading-none text-muted-foreground">
@@ -275,7 +275,7 @@ export function OverviewScreen({
           />
         ))}
         {usage === null ? (
-          <div className="col-span-full flex min-h-52 items-center justify-center rounded-xl border bg-card text-[12px] text-muted-foreground">
+          <div role="status" className="col-span-full flex min-h-52 items-center justify-center rounded-xl border bg-card text-[12px] text-muted-foreground">
             Reading local provider usage…
           </div>
         ) : null}

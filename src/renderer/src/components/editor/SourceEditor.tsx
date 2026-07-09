@@ -39,7 +39,12 @@ export function SourceEditor({ value, format, onChange }: SourceEditorProps) {
           '&': { fontSize: '12px', backgroundColor: 'transparent' },
           '.cm-content': { fontFamily: 'var(--font-mono, ui-monospace, monospace)' },
           '.cm-gutters': { backgroundColor: 'transparent', border: 'none' },
-          '&.cm-focused': { outline: 'none' }
+          '&.cm-focused': { outline: '2px solid var(--ring)', outlineOffset: '-2px' }
+        }),
+        EditorView.contentAttributes.of({
+          role: 'textbox',
+          'aria-label': 'Source editor',
+          'aria-multiline': 'true'
         })
       ]
     })
@@ -51,6 +56,8 @@ export function SourceEditor({ value, format, onChange }: SourceEditorProps) {
   return (
     <div
       ref={container}
+      role="region"
+      aria-label="Source editor"
       className="max-h-96 min-h-40 overflow-auto rounded-lg border border-border bg-muted/30"
     />
   )

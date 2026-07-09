@@ -62,7 +62,7 @@ test('round-trips a source edit while preserving unknown frontmatter and comment
     await openCodeReviewer(launched.page)
     await launched.page.getByRole('button', { name: 'Edit' }).click()
     await launched.page.getByRole('button', { name: 'Source' }).click()
-    await launched.page.locator('.cm-content').fill(updated)
+    await launched.page.getByRole('textbox', { name: 'Source editor' }).fill(updated)
     await applyEditorPreview(launched.page)
     await expect(launched.page.getByRole('dialog', { name: 'Changes saved' })).toBeVisible()
     await launched.page.getByRole('button', { name: 'OK' }).click()

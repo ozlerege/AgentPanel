@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, OctagonAlert, Plus, RefreshCw, RotateCcw, Search } from 'lucide-react'
+import { Plus, RefreshCw, RotateCcw, Search } from 'lucide-react'
 import type { AppError, Project, ResourceSummary } from '@shared/ipc'
 import type { ProviderId, ResourceDocument } from '@shared/resource'
 import { EmptyState } from '../components/EmptyState'
@@ -179,6 +179,11 @@ export function ResourceListScreen({
             {error}
           </p>
         ) : null}
+        {summaries === null && error === null ? (
+          <p role="status" className="p-3 text-[13px] text-muted-foreground">
+            Loading resources…
+          </p>
+        ) : null}
 
         <ul className="min-h-0 flex-1 overflow-y-auto p-2">
           {visible.map((summary) => {
@@ -205,17 +210,11 @@ export function ResourceListScreen({
                   >
                     <span className="flex items-center gap-1.5">
                       <span className="truncate text-[13px] font-medium">{summary.name}</span>
-                      {status === 'error' ? (
-                        <OctagonAlert
-                          aria-label="Has errors"
-                          className="size-3.5 shrink-0 text-destructive"
-                        />
-                      ) : null}
+                      {status === 'error' ? <Badge variant="destructive">Error</Badge> : null}
                       {status === 'warning' ? (
-                        <AlertTriangle
-                          aria-label="Has warnings"
-                          className="size-3.5 shrink-0 text-amber-500"
-                        />
+                        <Badge className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                          Warning
+                        </Badge>
                       ) : null}
                     </span>
                     {summary.description ? (
@@ -284,7 +283,7 @@ export function ResourceListScreen({
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Deleted {deletedBackup.name}</DialogTitle>
-              <DialogDescription>
+              <DialogDescription role="status">
                 A backup was created before files were removed.
               </DialogDescription>
             </DialogHeader>
@@ -304,7 +303,7 @@ export function ResourceListScreen({
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Undo failed</DialogTitle>
-              <DialogDescription>{undoFailure.message}</DialogDescription>
+              <DialogDescription role="alert">{undoFailure.message}</DialogDescription>
             </DialogHeader>
             <div className="flex justify-end">
               <Button size="sm" onClick={() => setUndoFailure(null)}>

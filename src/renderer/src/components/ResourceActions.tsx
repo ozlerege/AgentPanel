@@ -217,7 +217,7 @@ export function ResourceActions({
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Action failed</DialogTitle>
-              <DialogDescription>{failure.message}</DialogDescription>
+              <DialogDescription role="alert">{failure.message}</DialogDescription>
             </DialogHeader>
             <div className="flex justify-end">
               <Button size="sm" onClick={() => setFailure(null)}>
@@ -284,7 +284,9 @@ export function ResourceActions({
           <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Export complete</DialogTitle>
-              <DialogDescription className="break-all font-mono">{exportedTo}</DialogDescription>
+              <DialogDescription role="status" className="break-all font-mono">
+                {exportedTo}
+              </DialogDescription>
             </DialogHeader>
             <div className="flex justify-end">
               <Button size="sm" onClick={() => setExportedTo(null)}>

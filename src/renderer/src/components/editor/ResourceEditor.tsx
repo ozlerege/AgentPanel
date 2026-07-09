@@ -123,6 +123,7 @@ export function ResourceEditor({ doc, onCancel, onSaved, onReload }: ResourceEdi
               onClick={() => setTab(candidate)}
               className={cn(
                 'rounded-md px-3 py-1 text-[12px] font-medium transition-colors',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                 tab === candidate
                   ? 'bg-accent text-accent-foreground'
                   : 'text-muted-foreground hover:text-foreground'
