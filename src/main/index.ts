@@ -11,6 +11,7 @@ import { ProjectsStore } from './services/projects-store'
 import { ResourceService } from './services/resources'
 import { TransactionService } from './services/transactions'
 import { sweepStaleTempFiles } from './services/temp-sweep'
+import { initAutoUpdate } from './services/updater'
 import { UsageService } from './services/usage'
 import { resourceWatchPaths, WatcherService } from './services/watcher'
 import { applySecurityPolicy } from './security'
@@ -183,6 +184,7 @@ void app.whenReady().then(() => {
     reveal: (path) => shell.showItemInFolder(path)
   })
   createWindow()
+  initAutoUpdate((line) => console.info(line))
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
