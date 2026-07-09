@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -112,22 +112,37 @@ describe('ResourceService.read', () => {
 describe('ResourceService write path', () => {
   let tmp: string
   let agentPath: string
+  let skillPath: string
+  let skillExtraPath: string
+  let projectPath: string
+  let writeProjectId: string
   let service: ResourceService
   let backups: BackupService
 
   beforeEach(() => {
     tmp = mkdtempSync(join(tmpdir(), 'agent-control-write-'))
     mkdirSync(join(tmp, 'claude', 'agents'), { recursive: true })
+    mkdirSync(join(tmp, 'claude', 'skills', 'writing-docs'), { recursive: true })
     agentPath = join(tmp, 'claude', 'agents', 'reviewer.md')
+    skillPath = join(tmp, 'claude', 'skills', 'writing-docs', 'SKILL.md')
+    skillExtraPath = join(tmp, 'claude', 'skills', 'writing-docs', 'notes.md')
+    projectPath = join(tmp, 'project')
+    mkdirSync(projectPath)
     writeFileSync(
       agentPath,
       '---\nname: reviewer\ndescription: Reviews PRs\n---\n\nBe thorough.\n'
     )
+    writeFileSync(
+      skillPath,
+      '---\nname: writing-docs\ndescription: Writes docs\n---\n\nWrite clearly.\n'
+    )
+    writeFileSync(skillExtraPath, 'Keep examples short.\n')
     const registry = new ProviderRegistry()
     registry.register(
       createClaudeAdapter({ configRoot: join(tmp, 'claude'), userMcpPath: join(tmp, 'claude.json') })
     )
     const projects = new ProjectsStore(openDatabase(join(tmp, 'projects.db')))
+    writeProjectId = projects.add(projectPath).id
     backups = new BackupService(openDatabase(join(tmp, 'backups.db')), join(tmp, 'backups'))
     const transactions = new TransactionService({ roots: () => [tmp], files: () => [] }, backups)
     service = new ResourceService(registry, projects, transactions, backups)
@@ -140,6 +155,13 @@ describe('ResourceService write path', () => {
   async function readAgent() {
     const summaries = await service.list({ providerId: 'claude', kind: 'agents' })
     return service.read(summaries[0]!.id)
+  }
+
+  async function readNamed(kind: string, name: string) {
+    const summaries = await service.list({ providerId: 'claude', kind })
+    const summary = summaries.find((candidate) => candidate.name === name)
+    if (!summary) throw new Error(`resource not found: ${kind}/${name}`)
+    return service.read(summary.id)
   }
 
   function formEdit(doc: ResourceDocument, description: string): ResourceMutation {
@@ -228,5 +250,141 @@ describe('ResourceService write path', () => {
     const validation = await service.validate(badFields)
     expect(validation.ok).toBe(false)
     expect(validation.diagnostics[0]?.message).toContain('name must be a string')
+  })
+
+  it('creates a resource, returns its document, and restore removes it', async () => {
+    const createdPath = join(tmp, 'claude', 'agents', 'new-reviewer.md')
+    const result = await service.apply({
+      action: 'create',
+      draft: {
+        provider: 'claude',
+        kind: 'agents',
+        scope: 'user',
+        name: 'New Reviewer',
+        fields: { description: 'Reviews new work' },
+        body: 'Review the diff.'
+      }
+    })
+
+    expect(result.document?.name).toBe('New Reviewer')
+    expect(result.document?.sourcePaths).toEqual([createdPath])
+    expect(readFileSync(createdPath, 'utf8')).toContain('Reviews new work')
+    expect(backups.list()[0]?.operation).toBe('create')
+
+    await service.restore(result.backupId)
+    expect(existsSync(createdPath)).toBe(false)
+  })
+
+  it('rejects project-scope creates with an unknown project id', async () => {
+    await expect(
+      service.validate({
+        action: 'create',
+        draft: {
+          provider: 'claude',
+          kind: 'agents',
+          scope: 'project',
+          projectId: 'missing-project',
+          name: 'Project Agent',
+          fields: { description: 'Nope' },
+          body: 'Nope.'
+        }
+      })
+    ).rejects.toMatchObject({ code: 'invalid-request' })
+  })
+
+  it('derives project create paths in the main process', async () => {
+    const createdPath = join(projectPath, '.claude', 'agents', 'project-agent.md')
+    const result = await service.apply({
+      action: 'create',
+      draft: {
+        provider: 'claude',
+        kind: 'agents',
+        scope: 'project',
+        projectId: writeProjectId,
+        name: 'Project Agent',
+        fields: { description: 'Project scoped' },
+        body: 'Stay inside the project.'
+      }
+    })
+
+    expect(result.document?.sourcePaths).toEqual([createdPath])
+    expect(readFileSync(createdPath, 'utf8')).toContain('Project scoped')
+  })
+
+  it('duplicates a resource and refuses duplicate target collisions', async () => {
+    const doc = await readAgent()
+    const duplicated = await service.apply({
+      action: 'duplicate',
+      resourceId: doc.id,
+      newName: 'Reviewer Copy'
+    })
+    const copyPath = join(tmp, 'claude', 'agents', 'reviewer-copy.md')
+
+    expect(duplicated.document?.name).toBe('Reviewer Copy')
+    expect(readFileSync(copyPath, 'utf8')).toContain('name: Reviewer Copy')
+    expect(backups.list()[0]?.operation).toBe('duplicate')
+    await expect(
+      service.validate({
+        action: 'duplicate',
+        resourceId: doc.id,
+        newName: 'Reviewer Copy'
+      })
+    ).resolves.toMatchObject({ ok: false })
+  })
+
+  it('deletes a multi-file skill and restore resurrects it byte-identical', async () => {
+    const originalManifest = readFileSync(skillPath, 'utf8')
+    const originalExtra = readFileSync(skillExtraPath, 'utf8')
+    const doc = await readNamed('skills', 'writing-docs')
+    const preview = await service.preview({ action: 'delete', resourceId: doc.id, base: doc.fingerprints })
+
+    expect(preview.operations.map((operation) => operation.path)).toContain(skillPath)
+    expect(preview.operations.map((operation) => operation.path)).toContain(skillExtraPath)
+
+    const deleted = await service.apply({ action: 'delete', resourceId: doc.id, base: doc.fingerprints })
+    expect(deleted.document).toBeNull()
+    expect(existsSync(skillPath)).toBe(false)
+    expect(existsSync(skillExtraPath)).toBe(false)
+    expect(backups.list()[0]?.operation).toBe('delete')
+
+    await service.restore(deleted.backupId)
+    expect(readFileSync(skillPath, 'utf8')).toBe(originalManifest)
+    expect(readFileSync(skillExtraPath, 'utf8')).toBe(originalExtra)
+  })
+
+  it('disables and then enables a resource through discovery-visible paths', async () => {
+    const doc = await readAgent()
+    const disabled = await service.apply({
+      action: 'set-enabled',
+      resourceId: doc.id,
+      enabled: false,
+      base: doc.fingerprints
+    })
+
+    expect(disabled.document).toBeNull()
+    expect(existsSync(agentPath)).toBe(false)
+    const disabledDoc = await readNamed('agents', 'reviewer')
+    expect(disabledDoc.enabled).toBe(false)
+    expect(disabledDoc.sourcePaths[0]).toBe(`${agentPath}.disabled`)
+    expect(backups.list()[0]?.operation).toBe('disable')
+
+    const enabled = await service.apply({
+      action: 'set-enabled',
+      resourceId: disabledDoc.id,
+      enabled: true,
+      base: disabledDoc.fingerprints
+    })
+    expect(enabled.document).toBeNull()
+    expect(existsSync(agentPath)).toBe(true)
+    expect((await readNamed('agents', 'reviewer')).enabled).toBe(true)
+    expect(backups.list()[0]?.operation).toBe('enable')
+  })
+
+  it('rejects stale-base deletes with a conflict', async () => {
+    const doc = await readAgent()
+    writeFileSync(agentPath, '---\nname: reviewer\ndescription: Changed outside\n---\nX\n')
+    await expect(
+      service.apply({ action: 'delete', resourceId: doc.id, base: doc.fingerprints })
+    ).rejects.toMatchObject({ code: 'conflict' })
   })
 })
