@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
-import type { BackupEntry } from '../../shared/ipc'
+import type { BackupEntry, BackupOperation } from '../../shared/ipc'
 import type { ProviderId } from '../../shared/resource'
 import { AppOperationError } from '../errors'
 import { sha256Hex } from '../hash'
@@ -32,7 +32,7 @@ export class BackupService {
     private readonly storageDir: string
   ) {}
 
-  record(target: BackupTarget, operation: 'update' | 'restore', files: BackupFileContent[]): string {
+  record(target: BackupTarget, operation: BackupOperation, files: BackupFileContent[]): string {
     const id = randomUUID()
     const dir = join(this.storageDir, id)
     mkdirSync(dir, { recursive: true })
@@ -79,7 +79,7 @@ export class BackupService {
         resourceName: String(record['resource_name']),
         provider: record['provider'] as ProviderId,
         kind: String(record['kind']),
-        operation: record['operation'] as 'update' | 'restore',
+        operation: record['operation'] as BackupOperation,
         paths: pathsFor.all(id).map((p) => String((p as Record<string, unknown>)['path'])),
         createdAt: String(record['created_at'])
       }
@@ -88,7 +88,7 @@ export class BackupService {
 
   get(backupId: string): {
     target: BackupTarget
-    operation: 'update' | 'restore'
+    operation: BackupOperation
     files: BackupFileContent[]
   } {
     const row = this.db.prepare('SELECT * FROM backups WHERE id = ?').get(backupId) as
@@ -125,7 +125,7 @@ export class BackupService {
         provider: row['provider'] as ProviderId,
         kind: String(row['kind'])
       },
-      operation: row['operation'] as 'update' | 'restore',
+      operation: row['operation'] as BackupOperation,
       files
     }
   }

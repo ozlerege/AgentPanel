@@ -7,10 +7,12 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  rmdirSync,
   unlinkSync,
   writeSync
 } from 'node:fs'
 import { basename, dirname, join, resolve, sep } from 'node:path'
+import type { BackupOperation } from '../../shared/ipc'
 import type { FileFingerprint, FileOperation } from '../../shared/resource'
 import { AppOperationError } from '../errors'
 import { sha256Hex } from '../hash'
@@ -27,7 +29,7 @@ export interface AllowedWriteLocations {
 export interface TransactionOptions {
   /** Fingerprints from the read that seeded the edit; omit for restore. */
   base?: FileFingerprint[]
-  operation: 'update' | 'restore'
+  operation: BackupOperation
 }
 
 /** Resolve symlinks through the nearest existing ancestor. */
@@ -63,27 +65,57 @@ export class TransactionService {
     operations: FileOperation[],
     options: TransactionOptions
   ): { backupId: string } {
+    const conflictPaths = new Set<string>()
+    const snapshotsByPath = new Map<string, string | null>()
     for (const operation of operations) {
-      if (operation.kind !== 'write' && operation.kind !== 'delete') {
+      if (operation.kind === 'mkdir') {
         throw new AppOperationError(
           'invalid-request',
           'resources:apply',
-          `Unsupported file operation in Milestone 3: ${operation.kind}`
+          `Unsupported file operation: ${operation.kind}`
         )
       }
       if (operation.kind === 'write' && operation.content === undefined) {
         throw new AppOperationError('invalid-request', 'resources:apply', `Write without content: ${operation.path}`)
       }
+      if (operation.kind === 'move' && operation.toPath === undefined) {
+        throw new AppOperationError('invalid-request', 'resources:apply', `Move without target: ${operation.path}`)
+      }
       this.assertAllowed(operation.path)
+      if (operation.kind === 'move') {
+        const toPath = operation.toPath
+        if (toPath === undefined) {
+          throw new AppOperationError('invalid-request', 'resources:apply', `Move without target: ${operation.path}`)
+        }
+        this.assertAllowed(toPath)
+        if (existsSync(toPath)) {
+          throw new AppOperationError(
+            'conflict',
+            'resources:apply',
+            `Target already exists: ${toPath}`,
+            { path: toPath }
+          )
+        }
+      }
+      if (operation.kind !== 'rmdir') {
+        conflictPaths.add(operation.path)
+        if (!snapshotsByPath.has(operation.path)) {
+          snapshotsByPath.set(operation.path, readTextFile(operation.path))
+        }
+      }
+      if (operation.kind === 'move') {
+        const toPath = operation.toPath
+        if (toPath !== undefined && !snapshotsByPath.has(toPath)) {
+          snapshotsByPath.set(toPath, readTextFile(toPath))
+        }
+      }
     }
 
-    const snapshots = operations.map((operation) => ({
-      path: operation.path,
-      content: readTextFile(operation.path)
-    }))
+    const snapshots = Array.from(snapshotsByPath, ([path, content]) => ({ path, content }))
 
     if (options.base !== undefined) {
       for (const snapshot of snapshots) {
+        if (!conflictPaths.has(snapshot.path)) continue
         const baseEntry = options.base.find((entry) => entry.path === snapshot.path)
         const currentHash = snapshot.content === null ? '' : sha256Hex(snapshot.content)
         if (!baseEntry || baseEntry.hash !== currentHash) {
@@ -124,6 +156,49 @@ export class TransactionService {
     if (operation.kind === 'delete') {
       if (existsSync(operation.path)) unlinkSync(operation.path)
       this.backups.setHashAfter(backupId, operation.path, '')
+      return
+    }
+    if (operation.kind === 'move') {
+      const toPath = operation.toPath
+      if (toPath === undefined) {
+        throw new AppOperationError('invalid-request', 'resources:apply', `Move without target: ${operation.path}`)
+      }
+      const content = readTextFile(operation.path) ?? ''
+      try {
+        mkdirSync(dirname(toPath), { recursive: true })
+        renameSync(operation.path, toPath)
+      } catch (error) {
+        throw new AppOperationError(
+          'io',
+          'resources:apply',
+          `Move failed for ${operation.path}: ${error instanceof Error ? error.message : String(error)}`,
+          {
+            path: operation.path,
+            changed: false,
+            recovery: `No changes were applied to this file. Backup ${backupId} was created.`
+          }
+        )
+      }
+      this.backups.setHashAfter(backupId, operation.path, '')
+      this.backups.setHashAfter(backupId, toPath, sha256Hex(content))
+      return
+    }
+    if (operation.kind === 'rmdir') {
+      if (!existsSync(operation.path)) return
+      try {
+        rmdirSync(operation.path)
+      } catch (error) {
+        throw new AppOperationError(
+          'io',
+          'resources:apply',
+          `Remove directory failed for ${operation.path}: ${error instanceof Error ? error.message : String(error)}`,
+          {
+            path: operation.path,
+            changed: false,
+            recovery: `No changes were applied to this directory. Backup ${backupId} was created.`
+          }
+        )
+      }
       return
     }
     const content = operation.content ?? ''
