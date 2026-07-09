@@ -12,6 +12,7 @@
     "package:mac": "electron-vite build && electron-builder --mac",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
+    "test:e2e": "electron-vite build && playwright test",
     "test:watch": "vitest"
   },
   "dependencies": {
