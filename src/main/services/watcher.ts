@@ -1,4 +1,32 @@
+import { join } from 'node:path'
 import { watch, type FSWatcher } from 'chokidar'
+
+/**
+ * The exact filesystem surfaces discovery scans — and nothing more. Provider
+ * roots are never watched wholesale: ~/.codex and ~/.claude also hold session
+ * logs, transcripts, and plugin caches with thousands of directories, and
+ * chokidar (no fsevents since v4) opens one fs.watch handle per directory,
+ * which exhausts the file-descriptor limit of GUI-launched processes.
+ */
+export function resourceWatchPaths(home: string, projects: Array<{ path: string }>): string[] {
+  return [
+    join(home, '.codex', 'agents'),
+    join(home, '.codex', 'skills'),
+    join(home, '.codex', 'config.toml'),
+    join(home, '.codex', 'AGENTS.md'),
+    join(home, '.claude', 'agents'),
+    join(home, '.claude', 'skills'),
+    join(home, '.claude', 'commands'),
+    join(home, '.claude', 'CLAUDE.md'),
+    join(home, '.claude.json'),
+    ...projects.flatMap((project) => [
+      join(project.path, '.claude'),
+      join(project.path, 'CLAUDE.md'),
+      join(project.path, 'AGENTS.md'),
+      join(project.path, '.mcp.json')
+    ])
+  ]
+}
 
 export class WatcherService {
   private readonly debounceMs: number

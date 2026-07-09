@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { WatcherService } from './watcher'
+import { resourceWatchPaths, WatcherService } from './watcher'
 
 let root: string
 let service: WatcherService
@@ -22,6 +22,32 @@ async function expectNoChange(write: () => void, changes: string[]): Promise<voi
   await new Promise((resolve) => setTimeout(resolve, 160))
   expect(changes).toEqual([])
 }
+
+describe('resourceWatchPaths', () => {
+  it('watches only discovery surfaces, never whole provider roots', () => {
+    const paths = resourceWatchPaths('/home/u', [{ path: '/repo/a' }])
+    expect(paths).toEqual([
+      '/home/u/.codex/agents',
+      '/home/u/.codex/skills',
+      '/home/u/.codex/config.toml',
+      '/home/u/.codex/AGENTS.md',
+      '/home/u/.claude/agents',
+      '/home/u/.claude/skills',
+      '/home/u/.claude/commands',
+      '/home/u/.claude/CLAUDE.md',
+      '/home/u/.claude.json',
+      '/repo/a/.claude',
+      '/repo/a/CLAUDE.md',
+      '/repo/a/AGENTS.md',
+      '/repo/a/.mcp.json'
+    ])
+    // The roots themselves hold session logs, transcripts, and caches with
+    // thousands of directories; watching them exhausts file descriptors
+    // (chokidar v5 has no fsevents — one fs.watch handle per directory).
+    expect(paths).not.toContain('/home/u/.codex')
+    expect(paths).not.toContain('/home/u/.claude')
+  })
+})
 
 describe('WatcherService', () => {
   it('fires once after a file is created', async () => {

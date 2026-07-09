@@ -12,26 +12,11 @@ import { ProjectsStore } from './services/projects-store'
 import { ResourceService } from './services/resources'
 import { TransactionService } from './services/transactions'
 import { UsageService } from './services/usage'
-import { WatcherService } from './services/watcher'
+import { resourceWatchPaths, WatcherService } from './services/watcher'
 import { applySecurityPolicy } from './security'
 
 const DEV_SERVER_URL = process.env['ELECTRON_RENDERER_URL']
 const APP_ICON_PATH = join(app.getAppPath(), 'resources/app-icon.png')
-
-function resourceWatchPaths(projects: ProjectsStore): string[] {
-  const home = homedir()
-  return [
-    join(home, '.codex'),
-    join(home, '.claude'),
-    join(home, '.claude.json'),
-    ...projects.list().flatMap((project) => [
-      join(project.path, '.claude'),
-      join(project.path, 'CLAUDE.md'),
-      join(project.path, 'AGENTS.md'),
-      join(project.path, '.mcp.json')
-    ])
-  ]
-}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -119,7 +104,8 @@ void app.whenReady().then(() => {
   )
   const resources = new ResourceService(registry, projects, transactions, backups)
   const watcher = new WatcherService({})
-  const refreshWatchedPaths = (): void => watcher.watch(resourceWatchPaths(projects))
+  const refreshWatchedPaths = (): void =>
+    watcher.watch(resourceWatchPaths(homedir(), projects.list()))
   refreshWatchedPaths()
   projects.onDidChange(refreshWatchedPaths)
   watcher.onChange(() => {
