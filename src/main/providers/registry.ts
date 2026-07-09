@@ -1,5 +1,6 @@
 import type { ProviderId } from '../../shared/resource'
 import { AppOperationError } from '../errors'
+import type { ConfigRoots } from '../config-roots'
 import { createClaudeAdapter } from './claude'
 import { createCodexAdapter } from './codex'
 import type { ProviderAdapter } from './types'
@@ -28,9 +29,11 @@ export class ProviderRegistry {
   }
 }
 
-export function createDefaultRegistry(): ProviderRegistry {
+export function createDefaultRegistry(roots: ConfigRoots): ProviderRegistry {
   const registry = new ProviderRegistry()
-  registry.register(createCodexAdapter())
-  registry.register(createClaudeAdapter())
+  registry.register(createCodexAdapter({ configRoot: roots.codexRoot }))
+  registry.register(
+    createClaudeAdapter({ configRoot: roots.claudeRoot, userMcpPath: roots.claudeJson })
+  )
   return registry
 }

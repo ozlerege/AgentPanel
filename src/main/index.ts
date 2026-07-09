@@ -1,5 +1,4 @@
 import { writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { BrowserWindow, app, dialog, shell } from 'electron'
 import { RESOURCES_CHANGED_CHANNEL } from '../shared/ipc'
@@ -14,9 +13,13 @@ import { TransactionService } from './services/transactions'
 import { UsageService } from './services/usage'
 import { resourceWatchPaths, WatcherService } from './services/watcher'
 import { applySecurityPolicy } from './security'
+import { resolveConfigRoots } from './config-roots'
 
 const DEV_SERVER_URL = process.env['ELECTRON_RENDERER_URL']
 const APP_ICON_PATH = join(app.getAppPath(), 'resources/app-icon.png')
+const configRoots = resolveConfigRoots(process.env)
+
+if (process.env['AC_USER_DATA']) app.setPath('userData', process.env['AC_USER_DATA'])
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -85,27 +88,35 @@ if (process.env['AC_CAPTURE']) app.disableHardwareAcceleration()
 applySecurityPolicy(DEV_SERVER_URL)
 
 void app.whenReady().then(() => {
-  if (process.platform === 'darwin') app.dock?.setIcon(APP_ICON_PATH)
+  // Cosmetic only — a bad icon path (e.g. app path differs under test
+  // harnesses) must never abort startup.
+  if (process.platform === 'darwin') {
+    try {
+      app.dock?.setIcon(APP_ICON_PATH)
+    } catch {
+      /* keep booting without a dock icon */
+    }
+  }
 
   const db = openDatabase(join(app.getPath('userData'), 'agent-control.db'))
-  const registry = createDefaultRegistry()
+  const registry = createDefaultRegistry(configRoots)
   const projects = new ProjectsStore(db)
   const backups = new BackupService(db, join(app.getPath('userData'), 'backups'))
   const transactions = new TransactionService(
     {
       roots: () => [
-        join(homedir(), '.codex'),
-        join(homedir(), '.claude'),
+        configRoots.codexRoot,
+        configRoots.claudeRoot,
         ...projects.list().map((project) => project.path)
       ],
-      files: () => [join(homedir(), '.claude.json')]
+      files: () => [configRoots.claudeJson]
     },
     backups
   )
   const resources = new ResourceService(registry, projects, transactions, backups)
   const watcher = new WatcherService({})
   const refreshWatchedPaths = (): void =>
-    watcher.watch(resourceWatchPaths(homedir(), projects.list()))
+    watcher.watch(resourceWatchPaths(configRoots, projects.list()))
   refreshWatchedPaths()
   projects.onDidChange(refreshWatchedPaths)
   watcher.onChange(() => {

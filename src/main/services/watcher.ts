@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { watch, type FSWatcher } from 'chokidar'
+import type { ConfigRoots } from '../config-roots'
 
 /**
  * The exact filesystem surfaces discovery scans — and nothing more. Provider
@@ -8,17 +9,17 @@ import { watch, type FSWatcher } from 'chokidar'
  * chokidar (no fsevents since v4) opens one fs.watch handle per directory,
  * which exhausts the file-descriptor limit of GUI-launched processes.
  */
-export function resourceWatchPaths(home: string, projects: Array<{ path: string }>): string[] {
+export function resourceWatchPaths(roots: ConfigRoots, projects: Array<{ path: string }>): string[] {
   return [
-    join(home, '.codex', 'agents'),
-    join(home, '.codex', 'skills'),
-    join(home, '.codex', 'config.toml'),
-    join(home, '.codex', 'AGENTS.md'),
-    join(home, '.claude', 'agents'),
-    join(home, '.claude', 'skills'),
-    join(home, '.claude', 'commands'),
-    join(home, '.claude', 'CLAUDE.md'),
-    join(home, '.claude.json'),
+    join(roots.codexRoot, 'agents'),
+    join(roots.codexRoot, 'skills'),
+    join(roots.codexRoot, 'config.toml'),
+    join(roots.codexRoot, 'AGENTS.md'),
+    join(roots.claudeRoot, 'agents'),
+    join(roots.claudeRoot, 'skills'),
+    join(roots.claudeRoot, 'commands'),
+    join(roots.claudeRoot, 'CLAUDE.md'),
+    roots.claudeJson,
     ...projects.flatMap((project) => [
       join(project.path, '.claude'),
       join(project.path, 'CLAUDE.md'),

@@ -148,7 +148,11 @@ describe('ProviderRegistry', () => {
   })
 
   it('default registry contains codex and claude', () => {
-    const registry = createDefaultRegistry()
+    const registry = createDefaultRegistry({
+      codexRoot: join(FIXTURES, 'codex-user'),
+      claudeRoot: join(FIXTURES, 'claude-user'),
+      claudeJson: join(FIXTURES, 'claude-user.json')
+    })
     expect(registry.all().map((adapter) => adapter.id)).toEqual(['codex', 'claude'])
   })
 

@@ -25,7 +25,14 @@ async function expectNoChange(write: () => void, changes: string[]): Promise<voi
 
 describe('resourceWatchPaths', () => {
   it('watches only discovery surfaces, never whole provider roots', () => {
-    const paths = resourceWatchPaths('/home/u', [{ path: '/repo/a' }])
+    const paths = resourceWatchPaths(
+      {
+        codexRoot: '/home/u/.codex',
+        claudeRoot: '/home/u/.claude',
+        claudeJson: '/home/u/.claude.json'
+      },
+      [{ path: '/repo/a' }]
+    )
     expect(paths).toEqual([
       '/home/u/.codex/agents',
       '/home/u/.codex/skills',
