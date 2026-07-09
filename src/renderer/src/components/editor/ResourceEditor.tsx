@@ -4,8 +4,8 @@ import type { AppError } from '@shared/ipc'
 import type {
   ChangePreview,
   ResourceDocument,
-  ResourceEdit,
-  ResourceEditPayload
+  ResourceEditPayload,
+  ResourceMutation
 } from '@shared/resource'
 import {
   formFieldSpecs,
@@ -57,7 +57,7 @@ export function ResourceEditor({ doc, onCancel, onSaved, onReload }: ResourceEdi
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<AppError | null>(null)
 
-  const buildEdit = (): ResourceEdit => {
+  const buildEdit = (): ResourceMutation => {
     let payload: ResourceEditPayload
     if (tab === 'source' && sourceEditable) {
       payload = { mode: 'source', raw: source }
@@ -82,7 +82,7 @@ export function ResourceEditor({ doc, onCancel, onSaved, onReload }: ResourceEdi
         body: bodyEditable ? body : undefined
       }
     }
-    return { resourceId: doc.id, base: doc.fingerprints, edit: payload }
+    return { action: 'edit', resourceId: doc.id, base: doc.fingerprints, edit: payload }
   }
 
   const requestPreview = async () => {
@@ -107,7 +107,9 @@ export function ResourceEditor({ doc, onCancel, onSaved, onReload }: ResourceEdi
       setFailure(envelope.error)
       return
     }
-    onSaved(envelope.data.document)
+    if (envelope.data.document !== null) {
+      onSaved(envelope.data.document)
+    }
   }
 
   return (

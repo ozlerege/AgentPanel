@@ -3,9 +3,12 @@ import {
   appErrorSchema,
   backupEntrySchema,
   changePreviewSchema,
+  fileOperationSchema,
   ipcContract,
   projectSchema,
+  resourceCategorySchema,
   resourceDocumentSchema,
+  resourceMutationSchema,
   resourceSummarySchema
 } from './ipc'
 
@@ -88,11 +91,13 @@ describe('ipc contract schemas', () => {
 
 describe('resource edit channels', () => {
   const formEdit = {
+    action: 'edit',
     resourceId: 'abc',
     base: [{ path: '/f.md', hash: 'aa' }],
     edit: { mode: 'form', fields: { name: 'x' }, body: 'B' }
   }
   const sourceEdit = {
+    action: 'edit',
     resourceId: 'abc',
     base: [],
     edit: { mode: 'source', raw: '---\nname: x\n---\n' }
@@ -106,7 +111,7 @@ describe('resource edit channels', () => {
   })
 
   it('rejects unknown edit modes and missing fields', () => {
-    const bad = { resourceId: 'abc', base: [], edit: { mode: 'patch', raw: 'x' } }
+    const bad = { action: 'edit', resourceId: 'abc', base: [], edit: { mode: 'patch', raw: 'x' } }
     expect(ipcContract['resources:apply'].request.safeParse(bad).success).toBe(false)
     expect(ipcContract['resources:apply'].request.safeParse({}).success).toBe(false)
   })
@@ -141,4 +146,89 @@ describe('resource edit channels', () => {
     }
     expect(backupEntrySchema.parse(entry)).toEqual(entry)
   })
+
+  it('accepts every resource mutation arm and rejects unknown actions', () => {
+    const mutations = [
+      formEdit,
+      {
+        action: 'create',
+        draft: {
+          provider: 'codex',
+          kind: 'agents',
+          scope: 'user',
+          name: 'Reviewer',
+          fields: { description: 'Reviews code' },
+          body: 'Body'
+        }
+      },
+      { action: 'duplicate', resourceId: 'abc', newName: 'Reviewer Copy' },
+      { action: 'delete', resourceId: 'abc', base: [{ path: '/f.md', hash: 'aa' }] },
+      { action: 'set-enabled', resourceId: 'abc', enabled: false, base: [] }
+    ]
+    for (const mutation of mutations) {
+      expect(resourceMutationSchema.safeParse(mutation).success).toBe(true)
+    }
+    expect(resourceMutationSchema.safeParse({ action: 'rename', resourceId: 'abc' }).success).toBe(
+      false
+    )
+  })
+
+  it('allows a null document in resources:apply responses', () => {
+    expect(
+      ipcContract['resources:apply'].response.safeParse({ document: null, backupId: 'b1' })
+        .success
+    ).toBe(true)
+  })
+
+  it('widens backup operations and file operations', () => {
+    expect(backupEntrySchema.safeParse({ ...entryBase, operation: 'delete' }).success).toBe(true)
+    expect(backupEntrySchema.safeParse({ ...entryBase, operation: 'rename' }).success).toBe(false)
+    expect(fileOperationSchema.safeParse({ kind: 'rmdir', path: '/tmp/empty' }).success).toBe(true)
+  })
+
+  it('parses m4 resource utility channels', () => {
+    expect(ipcContract['resources:export'].request.parse({ resourceId: 'r1' })).toEqual({
+      resourceId: 'r1'
+    })
+    expect(ipcContract['resources:export'].response.parse({ savedTo: null })).toEqual({
+      savedTo: null
+    })
+    expect(ipcContract['resources:reveal'].request.parse({ resourceId: 'r1' })).toEqual({
+      resourceId: 'r1'
+    })
+    expect(ipcContract['resources:reveal'].response.parse(undefined)).toBeUndefined()
+    expect(ipcContract['imports:pick'].request.parse({ providerId: 'claude', kind: 'agents' })).toEqual({
+      providerId: 'claude',
+      kind: 'agents'
+    })
+    expect(ipcContract['imports:pick'].response.parse({ fileName: 'agent.md', raw: 'raw' })).toEqual({
+      fileName: 'agent.md',
+      raw: 'raw'
+    })
+    expect(ipcContract['imports:pick'].response.parse(null)).toBeNull()
+  })
+
+  it('allows category create scopes', () => {
+    expect(
+      resourceCategorySchema.parse({
+        id: 'agents',
+        label: 'Agents',
+        createScopes: ['user', 'project']
+      })
+    ).toEqual({
+      id: 'agents',
+      label: 'Agents',
+      createScopes: ['user', 'project']
+    })
+  })
 })
+
+const entryBase = {
+  id: 'b1',
+  resourceId: 'r1',
+  resourceName: 'code-reviewer',
+  provider: 'claude',
+  kind: 'agents',
+  paths: ['/f.md'],
+  createdAt: '2026-07-08T00:00:00.000Z'
+}

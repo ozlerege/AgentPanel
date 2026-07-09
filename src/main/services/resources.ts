@@ -9,6 +9,7 @@ import type {
   ResourceChange,
   ResourceDocument,
   ResourceEdit,
+  ResourceMutation,
   ValidationResult
 } from '../../shared/resource'
 import { AppOperationError } from '../errors'
@@ -132,6 +133,21 @@ export class ResourceService {
     }
   }
 
+  private requireEditMutation(mutation: ResourceMutation): ResourceEdit {
+    if (mutation.action === 'edit') {
+      return {
+        resourceId: mutation.resourceId,
+        base: mutation.base,
+        edit: mutation.edit
+      }
+    }
+    throw new AppOperationError(
+      'not-implemented',
+      'resources:apply',
+      'Arrives later in Milestone 4.'
+    )
+  }
+
   private async planAndValidate(edit: ResourceEdit): Promise<
     Resolved & { plan: FileOperationPlan | null; validation: ValidationResult }
   > {
@@ -165,11 +181,13 @@ export class ResourceService {
     return { ...resolved, plan, validation }
   }
 
-  async validate(edit: ResourceEdit): Promise<ValidationResult> {
+  async validate(mutation: ResourceMutation): Promise<ValidationResult> {
+    const edit = this.requireEditMutation(mutation)
     return (await this.planAndValidate(edit)).validation
   }
 
-  async preview(edit: ResourceEdit): Promise<ChangePreview> {
+  async preview(mutation: ResourceMutation): Promise<ChangePreview> {
+    const edit = this.requireEditMutation(mutation)
     const { plan, validation } = await this.planAndValidate(edit)
     const operations = plan?.operations ?? []
     const diffs: FileDiff[] = operations
@@ -193,7 +211,8 @@ export class ResourceService {
     return { operations, diffs, validation, conflicts }
   }
 
-  async apply(edit: ResourceEdit): Promise<{ document: ResourceDocument; backupId: string }> {
+  async apply(mutation: ResourceMutation): Promise<{ document: ResourceDocument | null; backupId: string }> {
+    const edit = this.requireEditMutation(mutation)
     const { plan, validation, adapter, native, ref } = await this.planAndValidate(edit)
     if (plan === null || !validation.ok) {
       const firstError = validation.diagnostics.find((d) => d.severity === 'error')

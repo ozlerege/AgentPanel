@@ -12,7 +12,8 @@ export type ProviderStatus = z.infer<typeof providerStatusSchema>
 
 export const resourceCategorySchema = z.object({
   id: z.string(),
-  label: z.string()
+  label: z.string(),
+  createScopes: z.array(z.enum(['user', 'project'])).optional()
 })
 export type ResourceCategory = z.infer<typeof resourceCategorySchema>
 
@@ -101,18 +102,60 @@ export const fileFingerprintSchema = z.object({
   hash: z.string()
 })
 
+export const resourceEditPayloadSchema = z.discriminatedUnion('mode', [
+  z.object({
+    mode: z.literal('form'),
+    fields: z.record(z.string(), z.unknown()),
+    body: z.string().optional()
+  }),
+  z.object({ mode: z.literal('source'), raw: z.string() })
+])
+
 export const resourceEditSchema = z.object({
   resourceId: z.string(),
   base: z.array(fileFingerprintSchema),
-  edit: z.discriminatedUnion('mode', [
-    z.object({
-      mode: z.literal('form'),
-      fields: z.record(z.string(), z.unknown()),
-      body: z.string().optional()
-    }),
-    z.object({ mode: z.literal('source'), raw: z.string() })
-  ])
+  edit: resourceEditPayloadSchema
 })
+
+export const resourceCreateDraftSchema = z.object({
+  provider: providerIdSchema,
+  kind: z.string(),
+  scope: z.enum(['user', 'project']),
+  projectId: z.string().optional(),
+  name: z.string(),
+  fields: z.record(z.string(), z.unknown()),
+  body: z.string().optional(),
+  raw: z.string().optional()
+})
+
+export const resourceMutationSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('edit'),
+    resourceId: z.string(),
+    base: z.array(fileFingerprintSchema),
+    edit: resourceEditPayloadSchema
+  }),
+  z.object({
+    action: z.literal('create'),
+    draft: resourceCreateDraftSchema
+  }),
+  z.object({
+    action: z.literal('duplicate'),
+    resourceId: z.string(),
+    newName: z.string()
+  }),
+  z.object({
+    action: z.literal('delete'),
+    resourceId: z.string(),
+    base: z.array(fileFingerprintSchema)
+  }),
+  z.object({
+    action: z.literal('set-enabled'),
+    resourceId: z.string(),
+    enabled: z.boolean(),
+    base: z.array(fileFingerprintSchema)
+  })
+])
 
 export const validationResultSchema = z.object({
   ok: z.boolean(),
@@ -121,7 +164,7 @@ export const validationResultSchema = z.object({
 export type ValidationResultShape = z.infer<typeof validationResultSchema>
 
 export const fileOperationSchema = z.object({
-  kind: z.enum(['write', 'move', 'delete', 'mkdir']),
+  kind: z.enum(['write', 'move', 'delete', 'mkdir', 'rmdir']),
   path: z.string(),
   content: z.string().optional(),
   toPath: z.string().optional()
@@ -145,11 +188,12 @@ export const backupEntrySchema = z.object({
   resourceName: z.string(),
   provider: providerIdSchema,
   kind: z.string(),
-  operation: z.enum(['update', 'restore']),
+  operation: z.enum(['update', 'restore', 'create', 'delete', 'duplicate', 'enable', 'disable']),
   paths: z.array(z.string()),
   createdAt: z.string()
 })
 export type BackupEntry = z.infer<typeof backupEntrySchema>
+export type BackupOperation = BackupEntry['operation']
 
 export const resourceQuerySchema = z.object({
   providerId: providerIdSchema.optional(),
@@ -185,7 +229,7 @@ export const resourceDocumentSchema = resourceSummarySchema.extend({
 })
 
 export const applyResultSchema = z.object({
-  document: resourceDocumentSchema,
+  document: resourceDocumentSchema.nullable(),
   backupId: z.string()
 })
 export type ApplyResult = z.infer<typeof applyResultSchema>
@@ -230,26 +274,40 @@ export const ipcContract = {
     response: resourceDocumentSchema
   },
   'resources:validate': {
-    request: resourceEditSchema,
+    request: resourceMutationSchema,
     response: validationResultSchema
   },
   'resources:preview': {
-    request: resourceEditSchema,
+    request: resourceMutationSchema,
     response: changePreviewSchema
   },
   'resources:apply': {
-    request: resourceEditSchema,
+    request: resourceMutationSchema,
     response: applyResultSchema
   },
   'resources:restore': {
     request: z.object({ backupId: z.string() }),
     response: restoreResultSchema
   },
+  'resources:export': {
+    request: z.object({ resourceId: z.string() }),
+    response: z.object({ savedTo: z.string().nullable() })
+  },
+  'resources:reveal': {
+    request: z.object({ resourceId: z.string() }),
+    response: z.undefined()
+  },
+  'imports:pick': {
+    request: z.object({ providerId: providerIdSchema, kind: z.string() }),
+    response: z.object({ fileName: z.string(), raw: z.string() }).nullable()
+  },
   'backups:list': {
     request: z.object({ resourceId: z.string().optional() }),
     response: z.array(backupEntrySchema)
   }
 } as const
+
+export const RESOURCES_CHANGED_CHANNEL = 'resources:changed'
 
 export type IpcChannel = keyof typeof ipcContract
 export type IpcRequest<C extends IpcChannel> = z.infer<

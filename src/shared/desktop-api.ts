@@ -10,7 +10,13 @@ import type {
   ResourceSummary,
   RestoreResult
 } from './ipc'
-import type { ChangePreview, ResourceDocument, ResourceEdit, ValidationResult } from './resource'
+import type {
+  ChangePreview,
+  ProviderId,
+  ResourceDocument,
+  ResourceMutation,
+  ValidationResult
+} from './resource'
 
 /**
  * The complete surface the preload exposes to the renderer. No generic
@@ -36,10 +42,19 @@ export interface DesktopApi {
   resources: {
     list(query?: ResourceQuery): Promise<ResourceSummary[]>
     read(id: string): Promise<ResourceDocument>
-    validate(edit: ResourceEdit): Promise<ValidationResult>
-    preview(edit: ResourceEdit): Promise<IpcEnvelope<ChangePreview>>
-    apply(edit: ResourceEdit): Promise<IpcEnvelope<ApplyResult>>
+    validate(mutation: ResourceMutation): Promise<ValidationResult>
+    preview(mutation: ResourceMutation): Promise<IpcEnvelope<ChangePreview>>
+    apply(mutation: ResourceMutation): Promise<IpcEnvelope<ApplyResult>>
     restore(backupId: string): Promise<IpcEnvelope<RestoreResult>>
+    export(resourceId: string): Promise<{ savedTo: string | null }>
+    reveal(resourceId: string): Promise<void>
+  }
+  imports: {
+    pick(providerId: ProviderId, kind: string): Promise<{ fileName: string; raw: string } | null>
+  }
+  events: {
+    /** Subscribe to main-process resource change pushes; returns unsubscribe. */
+    onResourcesChanged(listener: () => void): () => void
   }
   backups: {
     list(resourceId?: string): Promise<BackupEntry[]>

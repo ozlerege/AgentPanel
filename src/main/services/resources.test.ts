@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { ResourceDocument, ResourceEdit } from '../../shared/resource'
+import type { ResourceDocument, ResourceMutation } from '../../shared/resource'
 import { AppOperationError } from '../errors'
 import { createClaudeAdapter } from '../providers/claude'
 import { createCodexAdapter } from '../providers/codex'
@@ -49,12 +49,12 @@ afterEach(() => {
 
 describe('ResourceService.list', () => {
   it('lists every discovered resource with no query', async () => {
-    expect(await service.list({})).toHaveLength(25)
+    expect(await service.list({})).toHaveLength(29)
   })
 
   it('filters by provider, kind, scope, and project', async () => {
-    expect(await service.list({ providerId: 'codex' })).toHaveLength(9)
-    expect(await service.list({ kind: 'agents' })).toHaveLength(7)
+    expect(await service.list({ providerId: 'codex' })).toHaveLength(10)
+    expect(await service.list({ kind: 'agents' })).toHaveLength(9)
     expect(await service.list({ scope: 'project' })).toHaveLength(6)
     expect(await service.list({ projectId })).toHaveLength(6)
     expect(
@@ -142,8 +142,9 @@ describe('ResourceService write path', () => {
     return service.read(summaries[0]!.id)
   }
 
-  function formEdit(doc: ResourceDocument, description: string): ResourceEdit {
+  function formEdit(doc: ResourceDocument, description: string): ResourceMutation {
     return {
+      action: 'edit',
       resourceId: doc.id,
       base: doc.fingerprints,
       edit: { mode: 'form', fields: { name: 'reviewer', description }, body: '\nBe thorough.\n' }
@@ -170,7 +171,7 @@ describe('ResourceService write path', () => {
   it('applies a form edit, writes the file, and records a backup', async () => {
     const doc = await readAgent()
     const result = await service.apply(formEdit(doc, 'Reviews pull requests'))
-    expect(result.document.description).toBe('Reviews pull requests')
+    expect(result.document?.description).toBe('Reviews pull requests')
     expect(readFileSync(agentPath, 'utf8')).toContain('description: Reviews pull requests')
     expect(backups.list()).toHaveLength(1)
     expect(backups.list()[0]?.operation).toBe('update')
@@ -191,7 +192,8 @@ describe('ResourceService write path', () => {
 
   it('blocks apply on validation errors and reports them via validate', async () => {
     const doc = await readAgent()
-    const badSource: ResourceEdit = {
+    const badSource: ResourceMutation = {
+      action: 'edit',
       resourceId: doc.id,
       base: doc.fingerprints,
       edit: { mode: 'source', raw: '---\nname: [broken\n---\nX\n' }
@@ -217,7 +219,8 @@ describe('ResourceService write path', () => {
 
   it('turns planning failures into validation errors instead of throwing', async () => {
     const doc = await readAgent()
-    const badFields: ResourceEdit = {
+    const badFields: ResourceMutation = {
+      action: 'edit',
       resourceId: doc.id,
       base: doc.fingerprints,
       edit: { mode: 'form', fields: { name: 42 } }

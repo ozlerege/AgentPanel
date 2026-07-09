@@ -6,6 +6,7 @@ import {
   type IpcRequest,
   type IpcResponse
 } from '../../shared/ipc'
+import { AppOperationError } from '../errors'
 import { toAppError } from '../errors'
 import type { ProviderRegistry } from '../providers/registry'
 import type { BackupService } from '../services/backups'
@@ -87,5 +88,26 @@ export function registerIpcHandlers(deps: HandlerDeps): void {
   handle('resources:preview', (request) => deps.resources.preview(request))
   handle('resources:apply', (request) => deps.resources.apply(request))
   handle('resources:restore', (request) => deps.resources.restore(request.backupId))
+  handle('resources:export', () => {
+    throw new AppOperationError(
+      'not-implemented',
+      'resources:export',
+      'Arrives later in Milestone 4.'
+    )
+  })
+  handle('resources:reveal', () => {
+    throw new AppOperationError(
+      'not-implemented',
+      'resources:reveal',
+      'Arrives later in Milestone 4.'
+    )
+  })
+  handle('imports:pick', () => {
+    throw new AppOperationError(
+      'not-implemented',
+      'imports:pick',
+      'Arrives later in Milestone 4.'
+    )
+  })
   handle('backups:list', (request) => deps.backups.list(request.resourceId))
 }

@@ -6,6 +6,7 @@ import type {
   IpcRequest,
   IpcResponse
 } from '../shared/ipc'
+import { RESOURCES_CHANGED_CHANNEL as resourcesChangedChannel } from '../shared/ipc'
 
 async function invoke<C extends IpcChannel>(
   channel: C,
@@ -45,10 +46,25 @@ const api: DesktopApi = {
   resources: {
     list: (query) => invoke('resources:list', query ?? {}),
     read: (id) => invoke('resources:read', { id }),
-    validate: (edit) => invoke('resources:validate', edit),
-    preview: (edit) => invokeEnvelope('resources:preview', edit),
-    apply: (edit) => invokeEnvelope('resources:apply', edit),
-    restore: (backupId) => invokeEnvelope('resources:restore', { backupId })
+    validate: (mutation) => invoke('resources:validate', mutation),
+    preview: (mutation) => invokeEnvelope('resources:preview', mutation),
+    apply: (mutation) => invokeEnvelope('resources:apply', mutation),
+    restore: (backupId) => invokeEnvelope('resources:restore', { backupId }),
+    export: (resourceId) => invoke('resources:export', { resourceId }),
+    reveal: async (resourceId) => {
+      await invoke('resources:reveal', { resourceId })
+    }
+  },
+  imports: {
+    pick: (providerId, kind) => invoke('imports:pick', { providerId, kind })
+  },
+  events: {
+    onResourcesChanged: (listener) => {
+      const wrapped = (_event: Electron.IpcRendererEvent) => listener()
+      ipcRenderer.on(resourcesChangedChannel, wrapped)
+      return () =>
+        ipcRenderer.removeListener(resourcesChangedChannel, wrapped)
+    }
   },
   backups: {
     list: (resourceId) => invoke('backups:list', { resourceId })

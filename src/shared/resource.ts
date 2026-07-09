@@ -40,6 +40,7 @@ export interface NativeResource {
   scope: ResourceScope
   projectId?: string
   paths: string[]
+  disabled?: boolean
   /** Distinguishes entries inside a shared file (e.g. one MCP server name). */
   entryKey?: string
 }
@@ -49,6 +50,7 @@ export interface ResourceDraft {
   kind: string
   scope: ResourceScope
   projectId?: string
+  name?: string
   fields: Record<string, unknown>
   raw?: string
   /** Replacement Markdown body for form edits of markdown kinds. */
@@ -60,13 +62,16 @@ export interface ResourceDraft {
 }
 
 export interface ResourceChange {
-  kind: 'create' | 'update' | 'delete'
+  kind: 'create' | 'update' | 'delete' | 'duplicate' | 'set-enabled'
   resourceId?: string
   draft?: ResourceDraft
+  newName?: string
+  enabled?: boolean
 }
 
 export interface FileOperation {
-  kind: 'write' | 'move' | 'delete' | 'mkdir'
+  /** rmdir removes an empty directory only. */
+  kind: 'write' | 'move' | 'delete' | 'mkdir' | 'rmdir'
   path: string
   content?: string
   toPath?: string
@@ -91,6 +96,26 @@ export interface ResourceEdit {
   base: FileFingerprint[]
   edit: ResourceEditPayload
 }
+
+export interface ResourceCreateDraft {
+  provider: ProviderId
+  kind: string
+  scope: 'user' | 'project'
+  projectId?: string
+  /** Display name; planners slugify it into a filename / entry key. */
+  name: string
+  fields: Record<string, unknown>
+  body?: string
+  /** Full native content (imports); wins over fields/body when present. */
+  raw?: string
+}
+
+export type ResourceMutation =
+  | { action: 'edit'; resourceId: string; base: FileFingerprint[]; edit: ResourceEditPayload }
+  | { action: 'create'; draft: ResourceCreateDraft }
+  | { action: 'duplicate'; resourceId: string; newName: string }
+  | { action: 'delete'; resourceId: string; base: FileFingerprint[] }
+  | { action: 'set-enabled'; resourceId: string; enabled: boolean; base: FileFingerprint[] }
 
 export interface FileDiff {
   path: string
