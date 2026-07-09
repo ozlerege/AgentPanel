@@ -64,6 +64,52 @@ export function applyClaudeMcpFormEdit(
   return out
 }
 
+export function createClaudeMcpEntry(
+  source: string,
+  entryKey: string,
+  fields: Record<string, unknown>,
+  operation: string
+): string {
+  const form = mcpFormFields(fields, operation)
+  if (form.command === undefined || form.command.trim() === '') {
+    throw new AppOperationError('invalid-request', operation, 'MCP server command is required')
+  }
+  const { config, broken } = parseConfig(source)
+  if (broken || config === null) {
+    throw new AppOperationError(
+      'invalid-request',
+      operation,
+      'Cannot create an MCP entry in a malformed JSON file; fix the source first'
+    )
+  }
+  if (record(record(config['mcpServers'])?.[entryKey])) {
+    throw new AppOperationError('conflict', operation, `MCP server entry already exists: ${entryKey}`)
+  }
+  const entry: Record<string, unknown> = { command: form.command }
+  if (form.args !== undefined) entry['args'] = form.args
+  if (form.env !== undefined) entry['env'] = form.env
+  return editJsonValue(source, ['mcpServers', entryKey], entry)
+}
+
+export function deleteClaudeMcpEntry(
+  source: string,
+  entryKey: string,
+  operation: string
+): string {
+  const { config, broken } = parseConfig(source)
+  if (broken || config === null) {
+    throw new AppOperationError(
+      'invalid-request',
+      operation,
+      'Cannot delete an MCP entry in a malformed JSON file; fix the source first'
+    )
+  }
+  if (!record(record(config['mcpServers'])?.[entryKey])) {
+    throw new AppOperationError('not-found', operation, `MCP server entry not found: ${entryKey}`)
+  }
+  return editJsonValue(source, ['mcpServers', entryKey], undefined)
+}
+
 /** Validate a proposed MCP config file against one server entry. */
 export function validateClaudeMcpContent(
   content: string,

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { AppOperationError } from '../../errors'
-import { applyClaudeMcpFormEdit, validateClaudeMcpContent } from './edit'
+import {
+  applyClaudeMcpFormEdit,
+  createClaudeMcpEntry,
+  deleteClaudeMcpEntry,
+  validateClaudeMcpContent
+} from './edit'
 
 const CONFIG = `{
   // user mcp config
@@ -65,6 +70,33 @@ describe('applyClaudeMcpFormEdit', () => {
     } catch (error) {
       expect((error as AppOperationError).code).toBe('invalid-request')
     }
+  })
+})
+
+describe('createClaudeMcpEntry / deleteClaudeMcpEntry', () => {
+  it('creates an entry from absent or existing config content', () => {
+    expect(createClaudeMcpEntry('{}', 'new', { command: 'bunx' }, 'op')).toBe(
+      '{\n  "mcpServers": {\n    "new": {\n      "command": "bunx"\n    }\n  }\n}'
+    )
+    const existing = createClaudeMcpEntry(CONFIG, 'new', { command: 'bunx' }, 'op')
+    expect(existing).toContain('"new": {')
+    expect(existing).toContain('"command": "bunx"')
+    expect(existing).toContain('"otherSetting": true')
+  })
+
+  it('rejects missing command and existing entries', () => {
+    expect(() => createClaudeMcpEntry(CONFIG, 'new', {}, 'op')).toThrowError(
+      expect.objectContaining({ code: 'invalid-request' })
+    )
+    expect(() => createClaudeMcpEntry(CONFIG, 'github', { command: 'x' }, 'op')).toThrowError(
+      expect.objectContaining({ code: 'conflict' })
+    )
+  })
+
+  it('deletes an entry', () => {
+    const result = deleteClaudeMcpEntry(CONFIG, 'github', 'op')
+    expect(result).not.toContain('"github"')
+    expect(result).toContain('"plain"')
   })
 })
 
