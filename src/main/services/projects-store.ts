@@ -17,7 +17,16 @@ function toProject(row: ProjectRow): Project {
 }
 
 export class ProjectsStore {
+  private readonly listeners = new Set<() => void>()
+
   constructor(private readonly db: DatabaseSync) {}
+
+  onDidChange(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
 
   add(rawPath: string): Project {
     if (!isAbsolute(rawPath)) {
@@ -65,6 +74,7 @@ export class ProjectsStore {
     this.db
       .prepare('INSERT INTO projects (id, name, path, added_at) VALUES (?, ?, ?, ?)')
       .run(project.id, project.name, project.path, project.addedAt)
+    this.notifyChange()
     return project
   }
 
@@ -77,5 +87,10 @@ export class ProjectsStore {
 
   remove(id: string): void {
     this.db.prepare('DELETE FROM projects WHERE id = ?').run(id)
+    this.notifyChange()
+  }
+
+  private notifyChange(): void {
+    for (const listener of this.listeners) listener()
   }
 }

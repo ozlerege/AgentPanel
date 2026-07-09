@@ -6,7 +6,7 @@ import { NavSidebar } from './components/NavSidebar'
 import { Button } from './components/ui/button'
 import { ThemeProvider } from './lib/theme'
 import { cn } from './lib/utils'
-import { BackupsScreen } from './screens/BackupsScreen'
+import { HistoryScreen } from './screens/HistoryScreen'
 import { OverviewScreen } from './screens/OverviewScreen'
 import { ProjectsScreen } from './screens/ProjectsScreen'
 import { ResourceListScreen } from './screens/ResourceListScreen'
@@ -18,10 +18,19 @@ interface ScreenProps {
   providers: ProviderStatus[] | null
   usage: ProviderUsage[] | null
   usageLoading: boolean
+  resourceChangeVersion: number
   onRefreshUsage(): void
 }
 
-function Screen({ selected, capabilities, providers, usage, usageLoading, onRefreshUsage }: ScreenProps) {
+function Screen({
+  selected,
+  capabilities,
+  providers,
+  usage,
+  usageLoading,
+  resourceChangeVersion,
+  onRefreshUsage
+}: ScreenProps) {
   if (selected === 'overview') {
     return (
       <OverviewScreen
@@ -34,7 +43,7 @@ function Screen({ selected, capabilities, providers, usage, usageLoading, onRefr
   }
   if (selected === 'projects') return <ProjectsScreen />
   if (selected === 'settings') return <SettingsScreen />
-  if (selected === 'backups') return <BackupsScreen />
+  if (selected === 'backups') return <HistoryScreen />
   if (selected.startsWith('provider/')) {
     const [, providerId, categoryId] = selected.split('/')
     const provider = capabilities.find((c) => c.providerId === providerId)
@@ -48,6 +57,7 @@ function Screen({ selected, capabilities, providers, usage, usageLoading, onRefr
           title={`${provider.displayName} ${category.label}`}
           kindLabel={category.label}
           createScopes={category.createScopes}
+          resourceChangeVersion={resourceChangeVersion}
         />
       )
     }
@@ -69,6 +79,7 @@ export default function App() {
   const [providers, setProviders] = useState<ProviderStatus[] | null>(null)
   const [usage, setUsage] = useState<ProviderUsage[] | null>(null)
   const [usageLoading, setUsageLoading] = useState(false)
+  const [resourceChangeVersion, setResourceChangeVersion] = useState(0)
   const usageRequestInFlight = useRef(false)
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     return localStorage.getItem(SIDEBAR_STORAGE_KEY) !== 'false'
@@ -87,6 +98,12 @@ export default function App() {
       .detect()
       .then(setProviders)
       .catch(() => setProviders([]))
+  }, [])
+
+  useEffect(() => {
+    return window.desktopApi.events.onResourcesChanged(() => {
+      setResourceChangeVersion((version) => version + 1)
+    })
   }, [])
 
   const refreshUsage = useCallback(() => {
@@ -161,6 +178,7 @@ export default function App() {
             providers={providers}
             usage={usage}
             usageLoading={usageLoading}
+            resourceChangeVersion={resourceChangeVersion}
             onRefreshUsage={refreshUsage}
           />
         </main>

@@ -24,6 +24,7 @@ interface ResourceListScreenProps {
   title: string
   kindLabel: string
   createScopes?: Array<'user' | 'project'>
+  resourceChangeVersion?: number
 }
 
 function worstSeverity(summary: ResourceSummary): 'error' | 'warning' | null {
@@ -33,7 +34,14 @@ function worstSeverity(summary: ResourceSummary): 'error' | 'warning' | null {
     : null
 }
 
-export function ResourceListScreen({ providerId, kind, title, kindLabel, createScopes }: ResourceListScreenProps) {
+export function ResourceListScreen({
+  providerId,
+  kind,
+  title,
+  kindLabel,
+  createScopes,
+  resourceChangeVersion = 0
+}: ResourceListScreenProps) {
   const [summaries, setSummaries] = useState<ResourceSummary[] | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
@@ -57,6 +65,10 @@ export function ResourceListScreen({ providerId, kind, title, kindLabel, createS
   }, [providerId, kind])
 
   useEffect(refresh, [refresh])
+
+  useEffect(() => {
+    if (resourceChangeVersion > 0) refresh()
+  }, [resourceChangeVersion, refresh])
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -219,6 +231,7 @@ export function ResourceListScreen({ providerId, kind, title, kindLabel, createS
             resourceId={selected.id}
             kindLabel={kindLabel}
             projectName={projectName(selected.projectId)}
+            resourceChangeVersion={resourceChangeVersion}
             onChanged={handleActionChanged}
           />
         ) : (

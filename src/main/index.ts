@@ -2,6 +2,7 @@ import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { BrowserWindow, app, dialog, shell } from 'electron'
+import { RESOURCES_CHANGED_CHANNEL } from '../shared/ipc'
 import { registerIpcHandlers } from './ipc/handlers'
 import { createDefaultRegistry } from './providers/registry'
 import { BackupService } from './services/backups'
@@ -11,10 +12,26 @@ import { ProjectsStore } from './services/projects-store'
 import { ResourceService } from './services/resources'
 import { TransactionService } from './services/transactions'
 import { UsageService } from './services/usage'
+import { WatcherService } from './services/watcher'
 import { applySecurityPolicy } from './security'
 
 const DEV_SERVER_URL = process.env['ELECTRON_RENDERER_URL']
 const APP_ICON_PATH = join(app.getAppPath(), 'resources/app-icon.png')
+
+function resourceWatchPaths(projects: ProjectsStore): string[] {
+  const home = homedir()
+  return [
+    join(home, '.codex'),
+    join(home, '.claude'),
+    join(home, '.claude.json'),
+    ...projects.list().flatMap((project) => [
+      join(project.path, '.claude'),
+      join(project.path, 'CLAUDE.md'),
+      join(project.path, 'AGENTS.md'),
+      join(project.path, '.mcp.json')
+    ])
+  ]
+}
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -101,6 +118,18 @@ void app.whenReady().then(() => {
     backups
   )
   const resources = new ResourceService(registry, projects, transactions, backups)
+  const watcher = new WatcherService({})
+  const refreshWatchedPaths = (): void => watcher.watch(resourceWatchPaths(projects))
+  refreshWatchedPaths()
+  projects.onDidChange(refreshWatchedPaths)
+  watcher.onChange(() => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.send(RESOURCES_CHANGED_CHANNEL)
+    }
+  })
+  app.on('before-quit', () => {
+    void watcher.close()
+  })
   const exchange = new ExchangeService(resources, {
     async saveFile(defaultName) {
       const result = await dialog.showSaveDialog({

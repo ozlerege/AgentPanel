@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Expand, Info, OctagonAlert, Pencil } from 'lucide-react'
 import type { ResourceDocument } from '@shared/resource'
 import { ResourceEditor } from './editor/ResourceEditor'
@@ -20,6 +20,7 @@ interface ResourceInspectorProps {
   resourceId: string
   kindLabel: string
   projectName?: string
+  resourceChangeVersion?: number
   onChanged?: (selectedId?: string) => void
 }
 
@@ -63,12 +64,14 @@ export function ResourceInspector({
   resourceId,
   kindLabel,
   projectName,
+  resourceChangeVersion = 0,
   onChanged
 }: ResourceInspectorProps) {
   const [doc, setDoc] = useState<ResourceDocument | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [savedName, setSavedName] = useState<string | null>(null)
+  const handledResourceChangeVersion = useRef(resourceChangeVersion)
 
   const load = useCallback(() => {
     setDoc(null)
@@ -83,6 +86,12 @@ export function ResourceInspector({
     setEditing(false)
     load()
   }, [load])
+
+  useEffect(() => {
+    if (resourceChangeVersion === handledResourceChangeVersion.current) return
+    handledResourceChangeVersion.current = resourceChangeVersion
+    if (!editing) load()
+  }, [resourceChangeVersion, editing, load])
 
   if (error) {
     return (

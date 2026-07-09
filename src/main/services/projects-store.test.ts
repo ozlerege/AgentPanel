@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -36,6 +36,20 @@ describe('ProjectsStore', () => {
     const project = store.add(projectDir)
     store.remove(project.id)
     expect(store.list()).toEqual([])
+  })
+
+  it('notifies listeners when projects are added or removed', () => {
+    const events: string[] = []
+    const unsubscribe = store.onDidChange(() => events.push('changed'))
+
+    const project = store.add(projectDir)
+    store.remove(project.id)
+    unsubscribe()
+    const extraDir = join(projectDir, 'extra')
+    mkdirSync(extraDir)
+    store.add(extraDir)
+
+    expect(events).toEqual(['changed', 'changed'])
   })
 
   it('rejects a duplicate path with a conflict error', () => {
