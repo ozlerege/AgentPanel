@@ -10,6 +10,7 @@ import { AppOperationError } from '../errors'
 import { toAppError } from '../errors'
 import type { ProviderRegistry } from '../providers/registry'
 import type { BackupService } from '../services/backups'
+import type { ExchangeService } from '../services/exchange'
 import type { ProjectsStore } from '../services/projects-store'
 import type { ResourceService } from '../services/resources'
 import type { UsageService } from '../services/usage'
@@ -20,8 +21,10 @@ export interface HandlerDeps {
   projects: ProjectsStore
   registry: ProviderRegistry
   resources: ResourceService
+  exchange: ExchangeService
   usage: UsageService
   pickDirectory(): Promise<string | null>
+  reveal(path: string): void
 }
 
 function handle<C extends IpcChannel>(
@@ -88,26 +91,16 @@ export function registerIpcHandlers(deps: HandlerDeps): void {
   handle('resources:preview', (request) => deps.resources.preview(request))
   handle('resources:apply', (request) => deps.resources.apply(request))
   handle('resources:restore', (request) => deps.resources.restore(request.backupId))
-  handle('resources:export', () => {
-    throw new AppOperationError(
-      'not-implemented',
-      'resources:export',
-      'Arrives later in Milestone 4.'
-    )
+  handle('resources:export', (request) => deps.exchange.export(request.resourceId))
+  handle('resources:reveal', async (request) => {
+    const doc = await deps.resources.read(request.resourceId)
+    const path = doc.sourcePaths[0]
+    if (path === undefined) {
+      throw new AppOperationError('not-found', 'resources:reveal', 'Resource has no source path')
+    }
+    deps.reveal(path)
+    return undefined
   })
-  handle('resources:reveal', () => {
-    throw new AppOperationError(
-      'not-implemented',
-      'resources:reveal',
-      'Arrives later in Milestone 4.'
-    )
-  })
-  handle('imports:pick', () => {
-    throw new AppOperationError(
-      'not-implemented',
-      'imports:pick',
-      'Arrives later in Milestone 4.'
-    )
-  })
+  handle('imports:pick', (request) => deps.exchange.pickImport(request.providerId, request.kind))
   handle('backups:list', (request) => deps.backups.list(request.resourceId))
 }

@@ -1,11 +1,12 @@
 import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { BrowserWindow, app, dialog } from 'electron'
+import { BrowserWindow, app, dialog, shell } from 'electron'
 import { registerIpcHandlers } from './ipc/handlers'
 import { createDefaultRegistry } from './providers/registry'
 import { BackupService } from './services/backups'
 import { openDatabase } from './services/db'
+import { ExchangeService } from './services/exchange'
 import { ProjectsStore } from './services/projects-store'
 import { ResourceService } from './services/resources'
 import { TransactionService } from './services/transactions'
@@ -100,11 +101,38 @@ void app.whenReady().then(() => {
     backups
   )
   const resources = new ResourceService(registry, projects, transactions, backups)
+  const exchange = new ExchangeService(resources, {
+    async saveFile(defaultName) {
+      const result = await dialog.showSaveDialog({
+        defaultPath: defaultName
+      })
+      return result.canceled || result.filePath === undefined ? null : result.filePath
+    },
+    async pickDirectory(title) {
+      const result = await dialog.showOpenDialog({
+        title,
+        properties: ['openDirectory', 'createDirectory']
+      })
+      return result.canceled || result.filePaths.length === 0
+        ? null
+        : result.filePaths[0]
+    },
+    async pickFile(filters) {
+      const result = await dialog.showOpenDialog({
+        filters,
+        properties: ['openFile']
+      })
+      return result.canceled || result.filePaths.length === 0
+        ? null
+        : result.filePaths[0]
+    }
+  })
   registerIpcHandlers({
     backups,
     projects,
     registry,
     resources,
+    exchange,
     usage: new UsageService(),
     pickDirectory: async () => {
       const result = await dialog.showOpenDialog({
@@ -114,7 +142,8 @@ void app.whenReady().then(() => {
       return result.canceled || result.filePaths.length === 0
         ? null
         : result.filePaths[0]
-    }
+    },
+    reveal: (path) => shell.showItemInFolder(path)
   })
   createWindow()
   app.on('activate', () => {
