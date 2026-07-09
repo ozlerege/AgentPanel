@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AlertTriangle, Info, OctagonAlert } from 'lucide-react'
-import type { ChangePreview } from '@shared/resource'
+import type { ChangePreview, FileOperation } from '@shared/resource'
 import { Button } from '../ui/button'
 import {
   Dialog,
@@ -14,15 +14,42 @@ import { DiffView } from './DiffView'
 interface PreviewDialogProps {
   preview: ChangePreview
   busy: boolean
+  title?: string
+  description?: string
+  confirmLabel?: string
+  confirmVariant?: 'default' | 'destructive'
   onConfirm(): void
   onClose(): void
 }
 
-export function PreviewDialog({ preview, busy, onConfirm, onClose }: PreviewDialogProps) {
+function operationLabel(operation: FileOperation): string {
+  if (operation.kind === 'move') {
+    return operation.toPath === undefined
+      ? `Move ${operation.path}`
+      : `Move ${operation.path} -> ${operation.toPath}`
+  }
+  if (operation.kind === 'delete') return `Delete ${operation.path}`
+  if (operation.kind === 'rmdir') return `Remove directory ${operation.path}`
+  if (operation.kind === 'mkdir') return `Create directory ${operation.path}`
+  return `Write ${operation.path}`
+}
+
+export function PreviewDialog({
+  preview,
+  busy,
+  title = 'Review changes',
+  description = 'A backup of every affected file is created before anything is written.',
+  confirmLabel = 'Apply changes',
+  confirmVariant = 'default',
+  onConfirm,
+  onClose
+}: PreviewDialogProps) {
   const [warningsConfirmed, setWarningsConfirmed] = useState(false)
   const errors = preview.validation.diagnostics.filter((d) => d.severity === 'error')
   const warnings = preview.validation.diagnostics.filter((d) => d.severity === 'warning')
-  const hasChanges = preview.diffs.some((diff) => diff.unified !== '')
+  const nonWriteOperations = preview.operations.filter((operation) => operation.kind !== 'write')
+  const hasChanges =
+    preview.diffs.some((diff) => diff.unified !== '') || nonWriteOperations.length > 0
   const blocked =
     busy ||
     errors.length > 0 ||
@@ -34,10 +61,8 @@ export function PreviewDialog({ preview, busy, onConfirm, onClose }: PreviewDial
     <Dialog open onOpenChange={(open) => (!open ? onClose() : undefined)}>
       <DialogContent className="max-h-[min(85vh,52rem)] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Review changes</DialogTitle>
-          <DialogDescription>
-            A backup of every affected file is created before anything is written.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
@@ -94,6 +119,22 @@ export function PreviewDialog({ preview, busy, onConfirm, onClose }: PreviewDial
               )}
             </section>
           ))}
+          {nonWriteOperations.length > 0 ? (
+            <section>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                File operations
+              </h3>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {nonWriteOperations.map((operation, index) => (
+                  <li key={`${operation.kind}:${operation.path}:${index}`} className="rounded-md border border-border bg-muted/40 px-3 py-2">
+                    <code className="break-all font-mono text-[11px] text-muted-foreground">
+                      {operationLabel(operation)}
+                    </code>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
           {!hasChanges ? (
             <p className="text-[12px] text-muted-foreground">
               Nothing to apply — the edit produces identical content.
@@ -118,8 +159,8 @@ export function PreviewDialog({ preview, busy, onConfirm, onClose }: PreviewDial
             <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button size="sm" onClick={onConfirm} disabled={blocked}>
-              {busy ? 'Applying…' : 'Apply changes'}
+            <Button size="sm" variant={confirmVariant} onClick={onConfirm} disabled={blocked}>
+              {busy ? 'Applying...' : confirmLabel}
             </Button>
           </div>
         </div>

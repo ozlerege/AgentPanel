@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ResourceDocument } from '@shared/resource'
 import {
+  buildResourceCreateDraft,
   formFieldSpecs,
   hasBodyEditor,
   initialArgs,
@@ -75,5 +76,98 @@ describe('initial values', () => {
     expect(initialArgs(doc({ kind: 'mcp-servers' }))).toBe('')
     expect(initialEnv(mcp)).toEqual([{ key: 'A', value: '1' }])
     expect(initialEnv(doc({ kind: 'mcp-servers' }))).toEqual([])
+  })
+})
+
+describe('buildResourceCreateDraft', () => {
+  it('builds markdown resource drafts with provider-specific agent fields', () => {
+    expect(
+      buildResourceCreateDraft({
+        provider: 'claude',
+        kind: 'agents',
+        scope: 'project',
+        projectId: 'p1',
+        name: 'Reviewer',
+        description: 'Reviews PRs',
+        body: 'Be thorough.'
+      })
+    ).toEqual({
+      provider: 'claude',
+      kind: 'agents',
+      scope: 'project',
+      projectId: 'p1',
+      name: 'Reviewer',
+      fields: { description: 'Reviews PRs' },
+      body: 'Be thorough.'
+    })
+
+    expect(
+      buildResourceCreateDraft({
+        provider: 'codex',
+        kind: 'agents',
+        scope: 'user',
+        name: 'Reviewer',
+        description: 'Reviews PRs',
+        developerInstructions: 'Use concise notes.'
+      })
+    ).toEqual({
+      provider: 'codex',
+      kind: 'agents',
+      scope: 'user',
+      name: 'Reviewer',
+      fields: {
+        description: 'Reviews PRs',
+        developer_instructions: 'Use concise notes.'
+      }
+    })
+  })
+
+  it('builds MCP drafts by parsing args and environment rows', () => {
+    expect(
+      buildResourceCreateDraft({
+        provider: 'claude',
+        kind: 'mcp-servers',
+        scope: 'user',
+        name: 'github',
+        command: 'npx',
+        argsText: ' -y \nserver\n\n',
+        envRows: [
+          { key: 'TOKEN', value: 'secret' },
+          { key: ' ', value: 'ignored' }
+        ]
+      })
+    ).toEqual({
+      provider: 'claude',
+      kind: 'mcp-servers',
+      scope: 'user',
+      name: 'github',
+      fields: {
+        command: 'npx',
+        args: ['-y', 'server'],
+        env: { TOKEN: 'secret' }
+      }
+    })
+  })
+
+  it('includes imported raw content without adding a path', () => {
+    expect(
+      buildResourceCreateDraft({
+        provider: 'claude',
+        kind: 'commands',
+        scope: 'user',
+        name: 'deploy',
+        description: 'Deploys',
+        body: 'Run deploy.',
+        raw: 'native content'
+      })
+    ).toEqual({
+      provider: 'claude',
+      kind: 'commands',
+      scope: 'user',
+      name: 'deploy',
+      fields: { description: 'Deploys' },
+      body: 'Run deploy.',
+      raw: 'native content'
+    })
   })
 })

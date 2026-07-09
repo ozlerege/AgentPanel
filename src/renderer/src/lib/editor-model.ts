@@ -1,4 +1,4 @@
-import type { ResourceDocument } from '@shared/resource'
+import type { ProviderId, ResourceCreateDraft, ResourceDocument } from '@shared/resource'
 
 export interface TextFieldSpec {
   key: string
@@ -66,4 +66,74 @@ export function initialEnv(doc: ResourceDocument): Array<{ key: string; value: s
   return Object.entries(env)
     .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
     .map(([key, value]) => ({ key, value }))
+}
+
+export interface EnvRow {
+  key: string
+  value: string
+}
+
+export interface CreateDraftInput {
+  provider: ProviderId
+  kind: string
+  scope: 'user' | 'project'
+  projectId?: string
+  name: string
+  description?: string
+  body?: string
+  developerInstructions?: string
+  command?: string
+  argsText?: string
+  envRows?: EnvRow[]
+  raw?: string
+}
+
+export function parseArgsText(argsText: string): string[] {
+  return argsText
+    .split('\n')
+    .map((arg) => arg.trim())
+    .filter((arg) => arg !== '')
+}
+
+export function parseEnvRows(envRows: EnvRow[]): Record<string, string> {
+  return Object.fromEntries(
+    envRows
+      .map((row) => ({ key: row.key.trim(), value: row.value }))
+      .filter((row) => row.key !== '')
+      .map((row) => [row.key, row.value])
+  )
+}
+
+export function buildResourceCreateDraft(input: CreateDraftInput): ResourceCreateDraft {
+  let fields: Record<string, unknown> = {}
+  let body: string | undefined = input.body
+  if (input.kind === 'mcp-servers') {
+    fields = {
+      command: input.command ?? '',
+      args: parseArgsText(input.argsText ?? ''),
+      env: parseEnvRows(input.envRows ?? [])
+    }
+    body = undefined
+  } else if (input.provider === 'codex' && input.kind === 'agents') {
+    fields = {
+      description: input.description ?? '',
+      developer_instructions: input.developerInstructions ?? ''
+    }
+    body = undefined
+  } else if (input.kind === 'instructions') {
+    fields = {}
+  } else {
+    fields = { description: input.description ?? '' }
+  }
+  const draft: ResourceCreateDraft = {
+    provider: input.provider,
+    kind: input.kind,
+    scope: input.scope,
+    name: input.name,
+    fields
+  }
+  if (input.scope === 'project' && input.projectId !== undefined) draft.projectId = input.projectId
+  if (body !== undefined) draft.body = body
+  if (input.raw !== undefined) draft.raw = input.raw
+  return draft
 }

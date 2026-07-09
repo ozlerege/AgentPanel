@@ -47,6 +47,7 @@ function Screen({ selected, capabilities, providers, usage, usageLoading, onRefr
           kind={category.id}
           title={`${provider.displayName} ${category.label}`}
           kindLabel={category.label}
+          createScopes={category.createScopes}
         />
       )
     }
