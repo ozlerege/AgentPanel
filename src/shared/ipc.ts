@@ -307,7 +307,7 @@ export const ipcContract = {
   }
 } as const
 
-export const RESOURCES_CHANGED_CHANNEL = 'resources:changed'
+export { RESOURCES_CHANGED_CHANNEL } from './channels'
 
 export type IpcChannel = keyof typeof ipcContract
 export type IpcRequest<C extends IpcChannel> = z.infer<

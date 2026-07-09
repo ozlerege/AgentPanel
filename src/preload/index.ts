@@ -6,7 +6,7 @@ import type {
   IpcRequest,
   IpcResponse
 } from '../shared/ipc'
-import { RESOURCES_CHANGED_CHANNEL as resourcesChangedChannel } from '../shared/ipc'
+import { RESOURCES_CHANGED_CHANNEL as resourcesChangedChannel } from '../shared/channels'
 
 async function invoke<C extends IpcChannel>(
   channel: C,
