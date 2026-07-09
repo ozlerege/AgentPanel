@@ -7,6 +7,8 @@ import {
   fileSha256,
   fileModifiedAt,
   listFiles,
+  listFilesIncludingDisabled,
+  listFilesRecursiveIncludingDisabled,
   listFilesRecursive,
   listSubdirectories,
   readTextFile,
@@ -18,8 +20,10 @@ beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), "agent-control-scan-"));
   mkdirSync(join(root, "sub", "nested"), { recursive: true });
   writeFileSync(join(root, "a.md"), "A");
+  writeFileSync(join(root, "off.md.disabled"), "OFF");
   writeFileSync(join(root, "b.txt"), "B");
   writeFileSync(join(root, "sub", "c.md"), "C");
+  writeFileSync(join(root, "sub", "off.md.disabled"), "SUB OFF");
   writeFileSync(join(root, "sub", "nested", "d.md"), "D");
 });
 
@@ -50,6 +54,27 @@ describe("listFilesRecursive", () => {
     expect(listFilesRecursive(join(root, "nope"), ".md")).toEqual([]);
   });
 });
+
+describe('listFilesIncludingDisabled', () => {
+  it('lists active files plus disabled variants directly in the directory', () => {
+    expect(listFilesIncludingDisabled(root, '.md')).toEqual([
+      join(root, 'a.md'),
+      join(root, 'off.md.disabled')
+    ])
+  })
+})
+
+describe('listFilesRecursiveIncludingDisabled', () => {
+  it('lists active files plus disabled variants at any depth', () => {
+    expect(listFilesRecursiveIncludingDisabled(root, '.md')).toEqual([
+      join(root, 'a.md'),
+      join(root, 'off.md.disabled'),
+      join(root, 'sub', 'c.md'),
+      join(root, 'sub', 'nested', 'd.md'),
+      join(root, 'sub', 'off.md.disabled')
+    ])
+  })
+})
 
 describe("listSubdirectories", () => {
   it("lists direct subdirectories only", () => {

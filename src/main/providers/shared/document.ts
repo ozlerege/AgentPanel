@@ -23,6 +23,13 @@ export interface DocumentParts {
   diagnostics: Diagnostic[]
 }
 
+function enabledState(native: NativeResource): ResourceDocument['enabled'] {
+  if (native.kind === 'mcp-servers' || native.kind === 'instructions') {
+    return 'unsupported'
+  }
+  return native.disabled === true ? false : true
+}
+
 /** Assemble the ResourceDocument boilerplate every scanner shares. */
 export function buildDocument(native: NativeResource, parts: DocumentParts): ResourceDocument {
   return {
@@ -38,7 +45,7 @@ export function buildDocument(native: NativeResource, parts: DocumentParts): Res
     kind: native.kind,
     scope: native.scope,
     projectId: native.projectId,
-    enabled: 'unsupported',
+    enabled: enabledState(native),
     sourcePaths: native.paths,
     fingerprints: native.paths.map((path) => ({ path, hash: fileSha256(path) })),
     modifiedAt: fileModifiedAt(native.paths[0]),

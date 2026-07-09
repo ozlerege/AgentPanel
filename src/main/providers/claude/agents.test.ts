@@ -13,8 +13,10 @@ describe('discoverClaudeAgents', () => {
     expect(natives.map((n) => n.paths[0])).toEqual([
       join(AGENTS_DIR, 'broken.md'),
       join(AGENTS_DIR, 'code-reviewer.md'),
-      join(AGENTS_DIR, 'no-description.md')
+      join(AGENTS_DIR, 'no-description.md'),
+      join(AGENTS_DIR, 'off.md.disabled')
     ])
+    expect(natives.find((n) => n.paths[0]?.endsWith('off.md.disabled'))?.disabled).toBe(true)
     expect(natives[0]).toMatchObject({
       provider: 'claude',
       kind: 'agents',
@@ -32,7 +34,8 @@ describe('parseClaudeAgent', () => {
     parseClaudeAgent({
       ...USER,
       kind: 'agents',
-      paths: [join(AGENTS_DIR, file)]
+      paths: [join(AGENTS_DIR, file)],
+      disabled: file.endsWith('.disabled')
     })
 
   it('parses a healthy agent', () => {
@@ -43,7 +46,13 @@ describe('parseClaudeAgent', () => {
     expect(doc.native.format).toBe('markdown')
     expect(doc.native.raw).toContain('meticulous')
     expect(doc.diagnostics).toEqual([])
-    expect(doc.enabled).toBe('unsupported')
+    expect(doc.enabled).toBe(true)
+  })
+
+  it('discovers disabled agents with clean names', () => {
+    const doc = parse('off.md.disabled')
+    expect(doc.name).toBe('off')
+    expect(doc.enabled).toBe(false)
   })
 
   it('warns when description is missing', () => {

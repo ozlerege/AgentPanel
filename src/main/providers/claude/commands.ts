@@ -3,23 +3,27 @@ import type { NativeResource, ResourceDocument } from '../../../shared/resource'
 import { buildDocument, stringField } from '../shared/document'
 import type { ScopeTemplate } from '../shared/document'
 import { parseFrontmatter } from '../shared/frontmatter'
-import { listFilesRecursive, readTextFile } from '../shared/scan'
+import { listFilesRecursiveIncludingDisabled, readTextFile } from '../shared/scan'
 
 export function discoverClaudeCommands(
   commandsDir: string,
   template: ScopeTemplate
 ): NativeResource[] {
-  return listFilesRecursive(commandsDir, '.md').map((path) => ({
+  return listFilesRecursiveIncludingDisabled(commandsDir, '.md').map((path) => ({
     ...template,
     kind: 'commands',
     paths: [path],
-    entryKey: relative(commandsDir, path).replace(/\.md$/, '').split(sep).join('/')
+    disabled: path.endsWith('.md.disabled'),
+    entryKey: relative(commandsDir, path)
+      .replace(/\.md(?:\.disabled)?$/, '')
+      .split(sep)
+      .join('/')
   }))
 }
 
 export function parseClaudeCommand(native: NativeResource): ResourceDocument {
   const path = native.paths[0]
-  const name = native.entryKey ?? basename(path, '.md')
+  const name = native.entryKey ?? basename(path).replace(/\.md(?:\.disabled)?$/, '')
   const raw = readTextFile(path)
   if (raw === null) {
     return buildDocument(native, {

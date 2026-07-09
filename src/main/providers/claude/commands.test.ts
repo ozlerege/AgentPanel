@@ -10,7 +10,13 @@ const USER: ScopeTemplate = { provider: 'claude', scope: 'user' }
 describe('discoverClaudeCommands', () => {
   it('finds commands recursively and names them by relative path', () => {
     const natives = discoverClaudeCommands(COMMANDS_DIR, USER)
-    expect(natives.map((n) => n.entryKey)).toEqual(['deploy', 'empty', 'frontend/component'])
+    expect(natives.map((n) => n.entryKey)).toEqual([
+      'deploy',
+      'empty',
+      'frontend/component',
+      'off'
+    ])
+    expect(natives.find((n) => n.entryKey === 'off')?.disabled).toBe(true)
     expect(natives[0]).toMatchObject({
       provider: 'claude',
       kind: 'commands',
@@ -29,6 +35,7 @@ describe('parseClaudeCommand', () => {
       ...USER,
       kind: 'commands',
       paths: [join(COMMANDS_DIR, relative)],
+      disabled: relative.endsWith('.disabled'),
       entryKey
     })
 
@@ -38,6 +45,13 @@ describe('parseClaudeCommand', () => {
     expect(doc.description).toBe('Deploy the current branch')
     expect(doc.native.raw).toContain('$ARGUMENTS')
     expect(doc.diagnostics).toEqual([])
+    expect(doc.enabled).toBe(true)
+  })
+
+  it('discovers disabled commands with clean names', () => {
+    const doc = parse('off.md.disabled', 'off')
+    expect(doc.name).toBe('off')
+    expect(doc.enabled).toBe(false)
   })
 
   it('uses the namespaced entryKey as the name', () => {

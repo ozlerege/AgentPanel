@@ -3,22 +3,23 @@ import type { NativeResource, ResourceDocument } from '../../../shared/resource'
 import { buildDocument, missingFieldDiagnostics, stringField } from '../shared/document'
 import type { ScopeTemplate } from '../shared/document'
 import { parseFrontmatter } from '../shared/frontmatter'
-import { listFiles, readTextFile } from '../shared/scan'
+import { listFilesIncludingDisabled, readTextFile } from '../shared/scan'
 
 export function discoverClaudeAgents(
   agentsDir: string,
   template: ScopeTemplate
 ): NativeResource[] {
-  return listFiles(agentsDir, '.md').map((path) => ({
+  return listFilesIncludingDisabled(agentsDir, '.md').map((path) => ({
     ...template,
     kind: 'agents',
-    paths: [path]
+    paths: [path],
+    disabled: path.endsWith('.md.disabled')
   }))
 }
 
 export function parseClaudeAgent(native: NativeResource): ResourceDocument {
   const path = native.paths[0]
-  const fallbackName = basename(path, '.md')
+  const fallbackName = basename(path).replace(/\.md(?:\.disabled)?$/, '')
   const raw = readTextFile(path)
   if (raw === null) {
     return buildDocument(native, {

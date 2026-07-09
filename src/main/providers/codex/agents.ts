@@ -3,22 +3,23 @@ import { getStaticTOMLValue, parseTOML } from 'toml-eslint-parser'
 import type { Diagnostic, NativeResource, ResourceDocument } from '../../../shared/resource'
 import { buildDocument, missingFieldDiagnostics, stringField } from '../shared/document'
 import type { ScopeTemplate } from '../shared/document'
-import { listFiles, readTextFile } from '../shared/scan'
+import { listFilesIncludingDisabled, readTextFile } from '../shared/scan'
 
 export function discoverCodexAgents(
   agentsDir: string,
   template: ScopeTemplate
 ): NativeResource[] {
-  return listFiles(agentsDir, '.toml').map((path) => ({
+  return listFilesIncludingDisabled(agentsDir, '.toml').map((path) => ({
     ...template,
     kind: 'agents',
-    paths: [path]
+    paths: [path],
+    disabled: path.endsWith('.toml.disabled')
   }))
 }
 
 export function parseCodexAgent(native: NativeResource): ResourceDocument {
   const path = native.paths[0]
-  const fallbackName = basename(path, '.toml')
+  const fallbackName = basename(path).replace(/\.toml(?:\.disabled)?$/, '')
   const raw = readTextFile(path)
   if (raw === null) {
     return buildDocument(native, {

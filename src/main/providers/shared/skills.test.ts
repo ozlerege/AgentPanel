@@ -14,8 +14,10 @@ describe('discoverSkills', () => {
     const natives = discoverSkills(CLAUDE_SKILLS, CLAUDE_USER)
     expect(natives.map((n) => n.paths[0])).toEqual([
       join(CLAUDE_SKILLS, 'no-desc', 'SKILL.md'),
+      join(CLAUDE_SKILLS, 'off-skill', 'SKILL.md.disabled'),
       join(CLAUDE_SKILLS, 'writing-docs', 'SKILL.md')
     ])
+    expect(natives.find((n) => n.paths[0]?.endsWith('SKILL.md.disabled'))?.disabled).toBe(true)
     expect(natives[0]).toMatchObject({ provider: 'claude', kind: 'skills', scope: 'user' })
   })
 
@@ -35,6 +37,18 @@ describe('parseSkill', () => {
     expect(doc.description).toBe('Structure and edit technical documentation')
     expect(doc.native.format).toBe('markdown')
     expect(doc.diagnostics).toEqual([])
+    expect(doc.enabled).toBe(true)
+  })
+
+  it('discovers disabled skills with clean names', () => {
+    const doc = parseSkill({
+      ...CLAUDE_USER,
+      kind: 'skills',
+      paths: [join(CLAUDE_SKILLS, 'off-skill', 'SKILL.md.disabled')],
+      disabled: true
+    })
+    expect(doc.name).toBe('off-skill')
+    expect(doc.enabled).toBe(false)
   })
 
   it('warns when description is missing', () => {

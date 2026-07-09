@@ -14,11 +14,41 @@ export function listFiles(dir: string, extension: string): string[] {
   }
 }
 
+export function listFilesIncludingDisabled(dir: string, extension: string): string[] {
+  try {
+    return readdirSync(dir, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          (entry.name.endsWith(extension) || entry.name.endsWith(`${extension}.disabled`))
+      )
+      .map((entry) => join(dir, entry.name))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
 /** Files with the extension at any depth under dir, sorted. Missing dir -> []. */
 export function listFilesRecursive(dir: string, extension: string): string[] {
   try {
     return readdirSync(dir, { withFileTypes: true, recursive: true })
       .filter((entry) => entry.isFile() && entry.name.endsWith(extension))
+      .map((entry) => join(entry.parentPath, entry.name))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+export function listFilesRecursiveIncludingDisabled(dir: string, extension: string): string[] {
+  try {
+    return readdirSync(dir, { withFileTypes: true, recursive: true })
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          (entry.name.endsWith(extension) || entry.name.endsWith(`${extension}.disabled`))
+      )
       .map((entry) => join(entry.parentPath, entry.name))
       .sort();
   } catch {

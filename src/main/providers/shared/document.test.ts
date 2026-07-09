@@ -18,7 +18,7 @@ describe('buildDocument', () => {
       native: { format: 'markdown' },
       diagnostics: []
     })
-    expect(doc.enabled).toBe('unsupported')
+    expect(doc.enabled).toBe(true)
     expect(doc.sourcePaths).toEqual(native.paths)
     expect(doc.provider).toBe('claude')
     expect(doc.kind).toBe('agents')
@@ -42,6 +42,19 @@ describe('buildDocument', () => {
       }
     )
     expect(decodeResourceId(doc.id).entryKey).toBe('github')
+  })
+
+  it('marks disabled file resources as disabled', () => {
+    const doc = buildDocument(
+      { ...native, disabled: true },
+      {
+        name: 'x',
+        fields: {},
+        native: { format: 'markdown' },
+        diagnostics: []
+      }
+    )
+    expect(doc.enabled).toBe(false)
   })
 
   it('fingerprints every source path, empty hash for missing files', () => {
