@@ -7,6 +7,7 @@ import {
   symlinkSync,
   writeFileSync
 } from 'node:fs'
+import * as fs from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -14,7 +15,7 @@ import { AppOperationError } from '../errors'
 import { sha256Hex } from '../hash'
 import { BackupService, type BackupTarget } from './backups'
 import { openDatabase } from './db'
-import { TransactionService } from './transactions'
+import { TransactionService, type TransactionFsFacade } from './transactions'
 
 const TARGET: BackupTarget = {
   resourceId: 'r1',
@@ -252,5 +253,118 @@ describe('TransactionService', () => {
     )
     expect(backups.list()[0]?.operation).toBe('disable')
     expect(backups.get(backupId).files).toEqual([{ path: file, content: 'old' }])
+  })
+
+  it('preserves earlier writes and restores every snapshot when a later rename fails', () => {
+    const first = join(root, 'first.md')
+    const second = join(root, 'second.md')
+    writeFileSync(first, 'first before')
+    writeFileSync(second, 'second before')
+    let renameCount = 0
+    const failingFs: TransactionFsFacade = {
+      openSync: fs.openSync,
+      writeSync: fs.writeSync,
+      fsyncSync: fs.fsyncSync,
+      closeSync: fs.closeSync,
+      renameSync: (oldPath, newPath) => {
+        renameCount += 1
+        if (renameCount === 2) throw new Error('injected second rename failure')
+        fs.renameSync(oldPath, newPath)
+      },
+      unlinkSync: fs.unlinkSync,
+      rmdirSync: fs.rmdirSync,
+      mkdirSync: fs.mkdirSync,
+      existsSync: fs.existsSync,
+      rmSync: fs.rmSync
+    }
+    const faultingService = new TransactionService(
+      { roots: () => [root], files: () => [join(tmp, 'exact.json')] },
+      backups,
+      failingFs
+    )
+
+    let backupId = ''
+    try {
+      faultingService.apply(
+        TARGET,
+        [
+          { kind: 'write', path: first, content: 'first after' },
+          { kind: 'write', path: second, content: 'second after' }
+        ],
+        {
+          base: [
+            { path: first, hash: sha256Hex('first before') },
+            { path: second, hash: sha256Hex('second before') }
+          ],
+          operation: 'update'
+        }
+      )
+      expect.unreachable()
+    } catch (error) {
+      const appError = error as AppOperationError
+      expect(appError.code).toBe('io')
+      expect(appError.toAppError().changed).toBe(false)
+      backupId = backups.list()[0]!.id
+      expect(appError.toAppError().recovery).toContain(backupId)
+    }
+
+    expect(readFileSync(first, 'utf8')).toBe('first after')
+    expect(readFileSync(second, 'utf8')).toBe('second before')
+    expect(backups.get(backupId).files).toEqual([
+      { path: first, content: 'first before' },
+      { path: second, content: 'second before' }
+    ])
+
+    const backup = backups.get(backupId)
+    service.apply(
+      backup.target,
+      backup.files.map((file) =>
+        file.content === null
+          ? ({ kind: 'delete', path: file.path } as const)
+          : ({ kind: 'write', path: file.path, content: file.content } as const)
+      ),
+      { operation: 'restore' }
+    )
+    expect(readFileSync(first, 'utf8')).toBe('first before')
+    expect(readFileSync(second, 'utf8')).toBe('second before')
+  })
+
+  it('leaves the target and no temp file behind when opening the temp file fails', () => {
+    const file = join(root, 'a.md')
+    writeFileSync(file, 'before')
+    const failingFs: TransactionFsFacade = {
+      openSync: () => {
+        throw new Error('injected open failure')
+      },
+      writeSync: fs.writeSync,
+      fsyncSync: fs.fsyncSync,
+      closeSync: fs.closeSync,
+      renameSync: fs.renameSync,
+      unlinkSync: fs.unlinkSync,
+      rmdirSync: fs.rmdirSync,
+      mkdirSync: fs.mkdirSync,
+      existsSync: fs.existsSync,
+      rmSync: fs.rmSync
+    }
+    const faultingService = new TransactionService(
+      { roots: () => [root], files: () => [join(tmp, 'exact.json')] },
+      backups,
+      failingFs
+    )
+
+    try {
+      faultingService.apply(
+        TARGET,
+        [{ kind: 'write', path: file, content: 'after' }],
+        { base: [{ path: file, hash: sha256Hex('before') }], operation: 'update' }
+      )
+      expect.unreachable()
+    } catch (error) {
+      const appError = error as AppOperationError
+      expect(appError.code).toBe('io')
+      expect(appError.toAppError().changed).toBe(false)
+    }
+    expect(readFileSync(file, 'utf8')).toBe('before')
+    expect(fs.readdirSync(root).some((name) => name.startsWith('.agent-control-tmp-'))).toBe(false)
   })
 })

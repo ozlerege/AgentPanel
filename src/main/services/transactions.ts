@@ -1,16 +1,4 @@
-import {
-  closeSync,
-  existsSync,
-  fsyncSync,
-  mkdirSync,
-  openSync,
-  realpathSync,
-  renameSync,
-  rmSync,
-  rmdirSync,
-  unlinkSync,
-  writeSync
-} from 'node:fs'
+import * as fs from 'node:fs'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import type { BackupOperation } from '../../shared/ipc'
 import type { FileFingerprint, FileOperation } from '../../shared/resource'
@@ -32,18 +20,32 @@ export interface TransactionOptions {
   operation: BackupOperation
 }
 
+export type TransactionFsFacade = Pick<
+  typeof import('node:fs'),
+  | 'openSync'
+  | 'writeSync'
+  | 'fsyncSync'
+  | 'closeSync'
+  | 'renameSync'
+  | 'unlinkSync'
+  | 'rmdirSync'
+  | 'mkdirSync'
+  | 'existsSync'
+  | 'rmSync'
+>
+
 /** Resolve symlinks through the nearest existing ancestor. */
 function realTarget(path: string): string {
   let prefix = resolve(path)
   let suffix = ''
-  while (!existsSync(prefix)) {
+  while (!fs.existsSync(prefix)) {
     suffix = suffix === '' ? basename(prefix) : join(basename(prefix), suffix)
     const parent = dirname(prefix)
     if (parent === prefix) break
     prefix = parent
   }
   try {
-    const real = realpathSync(prefix)
+    const real = fs.realpathSync(prefix)
     return suffix === '' ? real : join(real, suffix)
   } catch {
     return resolve(path)
@@ -57,7 +59,8 @@ function realTarget(path: string): string {
 export class TransactionService {
   constructor(
     private readonly allowed: AllowedWriteLocations,
-    private readonly backups: BackupService
+    private readonly backups: BackupService,
+    private readonly fsFacade: TransactionFsFacade = fs
   ) {}
 
   apply(
@@ -88,7 +91,7 @@ export class TransactionService {
           throw new AppOperationError('invalid-request', 'resources:apply', `Move without target: ${operation.path}`)
         }
         this.assertAllowed(toPath)
-        if (existsSync(toPath)) {
+        if (fs.existsSync(toPath)) {
           throw new AppOperationError(
             'conflict',
             'resources:apply',
@@ -154,7 +157,7 @@ export class TransactionService {
 
   private execute(operation: FileOperation, backupId: string): void {
     if (operation.kind === 'delete') {
-      if (existsSync(operation.path)) unlinkSync(operation.path)
+      if (this.fsFacade.existsSync(operation.path)) this.fsFacade.unlinkSync(operation.path)
       this.backups.setHashAfter(backupId, operation.path, '')
       return
     }
@@ -165,8 +168,8 @@ export class TransactionService {
       }
       const content = readTextFile(operation.path) ?? ''
       try {
-        mkdirSync(dirname(toPath), { recursive: true })
-        renameSync(operation.path, toPath)
+        this.fsFacade.mkdirSync(dirname(toPath), { recursive: true })
+        this.fsFacade.renameSync(operation.path, toPath)
       } catch (error) {
         throw new AppOperationError(
           'io',
@@ -184,9 +187,9 @@ export class TransactionService {
       return
     }
     if (operation.kind === 'rmdir') {
-      if (!existsSync(operation.path)) return
+      if (!this.fsFacade.existsSync(operation.path)) return
       try {
-        rmdirSync(operation.path)
+        this.fsFacade.rmdirSync(operation.path)
       } catch (error) {
         throw new AppOperationError(
           'io',
@@ -202,19 +205,19 @@ export class TransactionService {
       return
     }
     const content = operation.content ?? ''
-    mkdirSync(dirname(operation.path), { recursive: true })
+    this.fsFacade.mkdirSync(dirname(operation.path), { recursive: true })
     const tmp = join(dirname(operation.path), `.agent-control-tmp-${process.pid}-${basename(operation.path)}`)
     try {
-      const fd = openSync(tmp, 'w')
+      const fd = this.fsFacade.openSync(tmp, 'w')
       try {
-        writeSync(fd, content)
-        fsyncSync(fd)
+        this.fsFacade.writeSync(fd, content)
+        this.fsFacade.fsyncSync(fd)
       } finally {
-        closeSync(fd)
+        this.fsFacade.closeSync(fd)
       }
-      renameSync(tmp, operation.path)
+      this.fsFacade.renameSync(tmp, operation.path)
     } catch (error) {
-      rmSync(tmp, { force: true })
+      this.fsFacade.rmSync(tmp, { force: true })
       throw new AppOperationError(
         'io',
         'resources:apply',

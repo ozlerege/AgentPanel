@@ -10,6 +10,7 @@ import { ExchangeService } from './services/exchange'
 import { ProjectsStore } from './services/projects-store'
 import { ResourceService } from './services/resources'
 import { TransactionService } from './services/transactions'
+import { sweepStaleTempFiles } from './services/temp-sweep'
 import { UsageService } from './services/usage'
 import { resourceWatchPaths, WatcherService } from './services/watcher'
 import { applySecurityPolicy } from './security'
@@ -102,6 +103,16 @@ void app.whenReady().then(() => {
   const registry = createDefaultRegistry(configRoots)
   const projects = new ProjectsStore(db)
   const backups = new BackupService(db, join(app.getPath('userData'), 'backups'))
+  try {
+    const removed = sweepStaleTempFiles([
+      configRoots.codexRoot,
+      configRoots.claudeRoot,
+      ...projects.list().map((project) => project.path)
+    ])
+    if (removed.length > 0) console.info(`Removed ${removed.length} stale transaction temp file(s).`)
+  } catch (error) {
+    console.error('Unable to sweep stale transaction temp files.', error)
+  }
   const transactions = new TransactionService(
     {
       roots: () => [
