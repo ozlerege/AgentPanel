@@ -1,7 +1,7 @@
 import {
-  Archive,
   ChevronDown,
   Folder,
+  History,
   LayoutGrid,
   PanelLeftClose,
   Settings,
@@ -17,7 +17,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collap
 const ITEM_ICONS: Record<string, typeof LayoutGrid> = {
   overview: LayoutGrid,
   projects: Folder,
-  backups: Archive,
+  backups: History,
   settings: Settings
 }
 

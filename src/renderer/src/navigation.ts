@@ -34,7 +34,7 @@ export function buildNavSections(capabilities: ProviderCapabilities[]): NavSecti
       label: 'Application',
       items: [
         { key: 'projects', label: 'Projects' },
-        { key: 'backups', label: 'Backups' },
+        { key: 'backups', label: 'History' },
         { key: 'settings', label: 'Settings' }
       ]
     }
