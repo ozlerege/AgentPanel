@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Expand, Info, OctagonAlert, Pencil } from 'lucide-react'
 import type { ResourceDocument } from '@shared/resource'
 import { ResourceEditor } from './editor/ResourceEditor'
-import { ResourceActions } from './ResourceActions'
+import { ResourceActions, type DeletedBackup } from './ResourceActions'
 import { formatFieldValue } from '../lib/mask'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -22,6 +22,7 @@ interface ResourceInspectorProps {
   projectName?: string
   resourceChangeVersion?: number
   onChanged?: (selectedId?: string) => void
+  onDeleted: (backup: DeletedBackup) => void
 }
 
 interface FieldValueProps {
@@ -65,7 +66,8 @@ export function ResourceInspector({
   kindLabel,
   projectName,
   resourceChangeVersion = 0,
-  onChanged
+  onChanged,
+  onDeleted
 }: ResourceInspectorProps) {
   const [doc, setDoc] = useState<ResourceDocument | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -119,6 +121,7 @@ export function ResourceInspector({
               resource={doc}
               scopeLabel={scopeLabel}
               buttonLabel="Actions"
+              onDeleted={onDeleted}
               onChanged={(selectedId) => {
                 if (selectedId !== undefined) {
                   onChanged?.(selectedId)

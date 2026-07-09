@@ -5,7 +5,6 @@ import {
   Eye,
   MoreHorizontal,
   Power,
-  RotateCcw,
   Trash2
 } from 'lucide-react'
 import type { AppError } from '@shared/ipc'
@@ -36,11 +35,22 @@ interface ResourceActionTarget {
   scope: 'user' | 'project' | 'directory'
 }
 
+export interface DeletedBackup {
+  id: string
+  name: string
+}
+
 interface ResourceActionsProps {
   resource: ResourceActionTarget
   scopeLabel: string
   buttonLabel?: string
   onChanged(selectedId?: string): void
+  /**
+   * Delete success is reported upward: this component unmounts when the
+   * deleted row/inspector refreshes away, so the undo dialog must be owned
+   * by a parent that survives the refresh.
+   */
+  onDeleted(backup: DeletedBackup): void
 }
 
 type PendingKind = 'duplicate' | 'delete' | 'set-enabled'
@@ -64,14 +74,14 @@ export function ResourceActions({
   resource,
   scopeLabel,
   buttonLabel,
-  onChanged
+  onChanged,
+  onDeleted
 }: ResourceActionsProps) {
   const [duplicateOpen, setDuplicateOpen] = useState(false)
   const [duplicateName, setDuplicateName] = useState(`${resource.name} copy`)
   const [pending, setPending] = useState<PendingMutation | null>(null)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<AppError | null>(null)
-  const [deletedBackup, setDeletedBackup] = useState<{ id: string; name: string } | null>(null)
   const [exportedTo, setExportedTo] = useState<string | null>(null)
 
   const previewMutation = async (kind: PendingKind, mutation: ResourceMutation) => {
@@ -128,21 +138,8 @@ export function ResourceActions({
       return
     }
     if (appliedKind === 'delete') {
-      setDeletedBackup({ id: envelope.data.backupId, name: resource.name })
+      onDeleted({ id: envelope.data.backupId, name: resource.name })
       onChanged(undefined)
-      return
-    }
-    onChanged(envelope.data.document?.id)
-  }
-
-  const restoreDeleted = async () => {
-    if (deletedBackup === null) return
-    setBusy(true)
-    const envelope = await window.desktopApi.resources.restore(deletedBackup.id)
-    setBusy(false)
-    setDeletedBackup(null)
-    if (!envelope.ok) {
-      setFailure(envelope.error)
       return
     }
     onChanged(envelope.data.document?.id)
@@ -280,27 +277,6 @@ export function ResourceActions({
           onConfirm={applyPending}
           onClose={() => setPending(null)}
         />
-      ) : null}
-
-      {deletedBackup ? (
-        <Dialog open onOpenChange={(open) => (!open ? setDeletedBackup(null) : undefined)}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Deleted {deletedBackup.name}</DialogTitle>
-              <DialogDescription>
-                {scopeLabel} resource deleted. A backup was created before files were removed.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={restoreDeleted} disabled={busy}>
-                <RotateCcw aria-hidden /> Undo
-              </Button>
-              <Button size="sm" onClick={() => setDeletedBackup(null)}>
-                OK
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       ) : null}
 
       {exportedTo ? (

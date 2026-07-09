@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, OctagonAlert, Plus, RefreshCw, Search } from 'lucide-react'
-import type { Project, ResourceSummary } from '@shared/ipc'
+import { AlertTriangle, OctagonAlert, Plus, RefreshCw, RotateCcw, Search } from 'lucide-react'
+import type { AppError, Project, ResourceSummary } from '@shared/ipc'
 import type { ProviderId, ResourceDocument } from '@shared/resource'
 import { EmptyState } from '../components/EmptyState'
 import { ResourceInspector } from '../components/ResourceInspector'
-import { ResourceActions } from '../components/ResourceActions'
+import { ResourceActions, type DeletedBackup } from '../components/ResourceActions'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '../components/ui/dialog'
 import { CreateResourceDialog } from '../components/editor/CreateResourceDialog'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -47,6 +54,11 @@ export function ResourceListScreen({
   const [search, setSearch] = useState('')
   const [scopeFilter, setScopeFilter] = useState('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Owned here, not in ResourceActions: the deleted row/inspector unmounts on
+  // refresh, and the undo affordance must outlive it (spec §9).
+  const [deletedBackup, setDeletedBackup] = useState<DeletedBackup | null>(null)
+  const [undoBusy, setUndoBusy] = useState(false)
+  const [undoFailure, setUndoFailure] = useState<AppError | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
 
@@ -100,6 +112,19 @@ export function ResourceListScreen({
   const handleActionChanged = (id?: string) => {
     setSelectedId(id ?? null)
     refresh()
+  }
+
+  const undoDelete = async () => {
+    if (deletedBackup === null) return
+    setUndoBusy(true)
+    const envelope = await window.desktopApi.resources.restore(deletedBackup.id)
+    setUndoBusy(false)
+    setDeletedBackup(null)
+    if (!envelope.ok) {
+      setUndoFailure(envelope.error)
+      return
+    }
+    handleActionChanged(envelope.data.document?.id)
   }
 
   return (
@@ -209,6 +234,7 @@ export function ResourceListScreen({
                       resource={summary}
                       scopeLabel={scopeLabel}
                       onChanged={handleActionChanged}
+                      onDeleted={setDeletedBackup}
                     />
                   </div>
                 </div>
@@ -233,6 +259,7 @@ export function ResourceListScreen({
             projectName={projectName(selected.projectId)}
             resourceChangeVersion={resourceChangeVersion}
             onChanged={handleActionChanged}
+            onDeleted={setDeletedBackup}
           />
         ) : (
           <EmptyState
@@ -251,6 +278,41 @@ export function ResourceListScreen({
           onCreated={handleCreated}
           onClose={() => setCreating(false)}
         />
+      ) : null}
+      {deletedBackup ? (
+        <Dialog open onOpenChange={(open) => (!open ? setDeletedBackup(null) : undefined)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Deleted {deletedBackup.name}</DialogTitle>
+              <DialogDescription>
+                A backup was created before files were removed.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={undoDelete} disabled={undoBusy}>
+                <RotateCcw aria-hidden /> Undo
+              </Button>
+              <Button size="sm" onClick={() => setDeletedBackup(null)}>
+                OK
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+      {undoFailure ? (
+        <Dialog open onOpenChange={(open) => (!open ? setUndoFailure(null) : undefined)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Undo failed</DialogTitle>
+              <DialogDescription>{undoFailure.message}</DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setUndoFailure(null)}>
+                OK
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       ) : null}
     </div>
   )
