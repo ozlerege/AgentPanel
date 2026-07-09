@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Expand, Info, OctagonAlert, Pencil } from 'lucide-react'
 import type { ResourceDocument } from '@shared/resource'
 import { ResourceEditor } from './editor/ResourceEditor'
+import { ResourceActions } from './ResourceActions'
 import { formatFieldValue } from '../lib/mask'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -19,7 +20,7 @@ interface ResourceInspectorProps {
   resourceId: string
   kindLabel: string
   projectName?: string
-  onChanged?: () => void
+  onChanged?: (selectedId?: string) => void
 }
 
 interface FieldValueProps {
@@ -93,6 +94,7 @@ export function ResourceInspector({
   if (!doc) {
     return <p className="p-6 text-[13px] text-muted-foreground">Loading…</p>
   }
+  const scopeLabel = doc.scope === 'user' ? 'User' : (projectName ?? 'Project')
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
@@ -101,18 +103,31 @@ export function ResourceInspector({
           <ProviderLogo providerId={doc.provider} className="size-4" />
           <h2 className="text-[15px] font-semibold tracking-tight">{doc.name}</h2>
           <Badge variant="outline">{kindLabel}</Badge>
-          <Badge variant="secondary">
-            {doc.scope === 'user' ? 'User' : (projectName ?? 'Project')}
-          </Badge>
+          <Badge variant="secondary">{scopeLabel}</Badge>
+          {doc.enabled === false ? <Badge variant="outline">Disabled</Badge> : null}
+          <div className="ml-auto flex items-center gap-2">
+            <ResourceActions
+              resource={doc}
+              scopeLabel={scopeLabel}
+              buttonLabel="Actions"
+              onChanged={(selectedId) => {
+                if (selectedId !== undefined) {
+                  onChanged?.(selectedId)
+                  return
+                }
+                onChanged?.()
+                load()
+              }}
+            />
           <Button
             variant="outline"
             size="sm"
-            className="ml-auto"
             onClick={() => setEditing(true)}
             disabled={editing || doc.native.raw === undefined}
           >
             <Pencil aria-hidden /> Edit
           </Button>
+          </div>
         </div>
         {doc.description ? (
           <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
@@ -140,7 +155,7 @@ export function ResourceInspector({
             setDoc(fresh)
             setEditing(false)
             setSavedName(fresh.name)
-            onChanged?.()
+            onChanged?.(fresh.id)
           }}
           onReload={load}
         />
