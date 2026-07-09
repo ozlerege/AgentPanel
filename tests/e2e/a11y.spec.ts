@@ -12,7 +12,15 @@ const axeSource = readFileSync(
   'utf8'
 )
 
-async function expectNoSeriousOrCriticalViolations(page: Page): Promise<void> {
+async function expectNoSeriousOrCriticalViolations(page: Page, surface: string): Promise<void> {
+  // Kill CSS transitions/animations before scanning: axe's color-contrast
+  // rule otherwise samples mid-transition blended colors (async data loads
+  // re-render buttons and restart their transition-colors at any moment).
+  // Settled colors are still measured, so real violations still fail.
+  await page.addStyleTag({
+    content:
+      '*, *::before, *::after { transition: none !important; animation: none !important; }'
+  })
   await page.evaluate(axeSource)
   const results = await page.evaluate<AxeResults>(
     `axe.run(document, { resultTypes: ['violations'] })`
@@ -23,9 +31,13 @@ async function expectNoSeriousOrCriticalViolations(page: Page): Promise<void> {
       id: violation.id,
       impact: violation.impact,
       help: violation.help,
-      nodes: violation.nodes.map((node) => node.target.join(' '))
+      nodes: violation.nodes.map((node) => ({
+        target: node.target.join(' '),
+        html: node.html,
+        failureSummary: node.failureSummary
+      }))
     }))
-  expect(blockingViolations).toEqual([])
+  expect(blockingViolations, `axe violations on ${surface}`).toEqual([])
 }
 
 async function openCodexAgents(page: Page): Promise<void> {
@@ -42,23 +54,23 @@ test('has no serious or critical axe violations on primary app surfaces', async 
   const { page } = launched
   try {
     await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
-    await expectNoSeriousOrCriticalViolations(page)
+    await expectNoSeriousOrCriticalViolations(page, 'overview')
 
     await openCodexAgents(page)
-    await expectNoSeriousOrCriticalViolations(page)
+    await expectNoSeriousOrCriticalViolations(page, 'codex agents list')
 
     await page.getByRole('button', { name: /reviewer/ }).first().click()
     await expect(page.getByRole('heading', { name: 'reviewer' })).toBeVisible()
-    await expectNoSeriousOrCriticalViolations(page)
+    await expectNoSeriousOrCriticalViolations(page, 'inspector view')
 
     await page.getByRole('button', { name: 'Edit' }).click()
     await expect(page.getByRole('button', { name: 'Review & save' })).toBeVisible()
-    await expectNoSeriousOrCriticalViolations(page)
+    await expectNoSeriousOrCriticalViolations(page, 'inspector edit')
     await page.getByRole('button', { name: 'Cancel' }).click()
 
     await page.getByRole('button', { name: 'Add Agents' }).click()
     await expect(page.getByRole('dialog', { name: 'Create Agents' })).toBeVisible()
-    await expectNoSeriousOrCriticalViolations(page)
+    await expectNoSeriousOrCriticalViolations(page, 'create dialog')
     await page.getByRole('dialog', { name: 'Create Agents' }).getByRole('button', { name: 'Cancel' }).click()
 
     await page
@@ -66,14 +78,14 @@ test('has no serious or critical axe violations on primary app surfaces', async 
       .getByRole('button', { name: 'History', exact: true })
       .click()
     await expect(page.getByRole('heading', { name: 'History' })).toBeVisible()
-    await expectNoSeriousOrCriticalViolations(page)
+    await expectNoSeriousOrCriticalViolations(page, 'history')
 
     await page
       .getByRole('navigation', { name: 'Main navigation' })
       .getByRole('button', { name: 'Settings', exact: true })
       .click()
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
-    await expectNoSeriousOrCriticalViolations(page)
+    await expectNoSeriousOrCriticalViolations(page, 'settings')
   } finally {
     await launched.close()
     disposeRoots(launched.roots)
