@@ -5,7 +5,7 @@ model = "gpt-5.5" # primary model
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 
-# Flags Agent Control does not understand and must never drop.
+# Flags Desmos Agent does not understand and must never drop.
 [experimental]
 raw_agents = true
 undocumented_setting = "keep-me"

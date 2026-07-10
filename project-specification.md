@@ -1,4 +1,4 @@
-# Agent Control
+# Desmos Agent
 
 ## Project specification
 

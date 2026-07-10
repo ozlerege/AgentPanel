@@ -1,4 +1,4 @@
-# Releasing Agent Control
+# Releasing Desmos Agent
 
 ## Prerequisites
 
@@ -49,8 +49,8 @@ CSC_IDENTITY_AUTO_DISCOVERY=false bun run package:mac
 After building, verify the `.app` inside the generated distribution (or mount the generated DMG and verify the installed app):
 
 ```sh
-codesign --verify --deep --strict --verbose=2 '/path/to/Agent Control.app'
-spctl --assess --type execute --verbose=4 '/path/to/Agent Control.app'
+codesign --verify --deep --strict --verbose=2 '/path/to/Desmos Agent.app'
+spctl --assess --type execute --verbose=4 '/path/to/Desmos Agent.app'
 ```
 
 ## Publish
@@ -66,6 +66,6 @@ Keep the signing, notarization, and `GH_TOKEN` environment variables available f
 ## Post-release smoke check
 
 - Install the released DMG on a clean macOS user account.
-- Open Agent Control and confirm it boots normally.
+- Open Desmos Agent and confirm it boots normally.
 - Confirm the app reports its release version.
 - Inspect the main-process log for the delayed auto-update check line; an updater failure must only be logged and must not block the app with a dialog.
