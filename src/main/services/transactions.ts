@@ -125,7 +125,7 @@ export class TransactionService {
           throw new AppOperationError(
             'conflict',
             'resources:apply',
-            `File changed outside Agent Control: ${snapshot.path}`,
+            `File changed outside Desmos Agent: ${snapshot.path}`,
             { path: snapshot.path, recovery: 'Reload the resource and repeat the edit.' }
           )
         }

@@ -4,7 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Agent Control design tokens.
+ * Desmos Agent design tokens.
  *
  * Register: precise macOS developer utility. System sans carries the UI;
  * JetBrains Mono carries everything that IS configuration (paths, provider

@@ -119,7 +119,7 @@ export function HistoryScreen() {
       {entries !== null && entries.length === 0 ? (
         <EmptyState
           title="No history yet"
-          description="History entries appear after Agent Control changes a resource."
+          description="History entries appear after Desmos Agent changes a resource."
         />
       ) : (
         <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto px-6">

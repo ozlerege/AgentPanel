@@ -4,8 +4,7 @@ import {
   History,
   LayoutGrid,
   PanelLeftClose,
-  Settings,
-  SlidersHorizontal
+  Settings
 } from 'lucide-react'
 import { Button } from './ui/button'
 import type { ProviderCapabilities, ProviderStatus } from '@shared/ipc'
@@ -13,6 +12,7 @@ import { cn } from '../lib/utils'
 import { buildNavSections, type NavSection } from '../navigation'
 import { ProviderLogo } from './ProviderLogo'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'
+import appIconUrl from '../../../../resources/app-icon.png'
 
 const ITEM_ICONS: Record<string, typeof LayoutGrid> = {
   overview: LayoutGrid,
@@ -135,10 +135,8 @@ export function NavSidebar({
       )}
     >
       <div className="flex items-center gap-2 px-4 pb-4 pt-5">
-        <div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <SlidersHorizontal className="size-3.5" aria-hidden />
-        </div>
-        <span className="flex-1 text-[13px] font-semibold tracking-tight">Agent Control</span>
+        <img src={appIconUrl} alt="" aria-hidden className="size-6 rounded-md object-cover" />
+        <span className="flex-1 text-[13px] font-semibold tracking-tight">Desmos Agent</span>
         <Button
           type="button"
           variant="ghost"

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Folder, Plus } from 'lucide-react'
 import type { Project } from '@shared/ipc'
+import { EmptyState } from '../components/EmptyState'
 import { Button } from '../components/ui/button'
 import {
   Dialog,
@@ -52,66 +53,66 @@ export function ProjectsScreen() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-7">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">Projects</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Folders whose project-level resources Agent Control manages.
-          </p>
+    <div className="flex h-full flex-col">
+      <header className="flex flex-col gap-3 border-b border-border px-6 py-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-[15px] font-semibold tracking-tight">Projects</h1>
+            <p className="text-[12px] text-muted-foreground">
+              Folders whose project-level resources Desmos Agent manages.
+            </p>
+          </div>
+          <Button size="sm" onClick={() => void addProject()}>
+            <Plus aria-hidden />
+            Add project
+          </Button>
         </div>
-        <Button size="sm" onClick={() => void addProject()}>
-          <Plus aria-hidden />
-          Add project
-        </Button>
       </header>
 
       {error ? (
-        <p role="alert" className="mt-4 text-[13px] text-destructive">
+        <p role="alert" className="px-6 py-3 text-[13px] text-destructive">
           {error}
         </p>
       ) : null}
 
-      <ul className="mt-6 flex flex-col gap-2">
-        {projects.map((project) => (
-          <li
-            key={project.id}
-            className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
-          >
-            <Folder aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium">{project.name}</div>
-              <code className="block truncate font-mono text-[11px] text-muted-foreground">
-                {project.path}
-              </code>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={() => setPendingRemoval(project)}
+      {projects.length === 0 ? (
+        <EmptyState
+          title="No projects yet"
+          description="Add a project folder to manage its agents, skills, and MCP servers alongside your global configuration."
+        />
+      ) : (
+        <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto px-6">
+          {projects.map((project) => (
+            <li
+              key={project.id}
+              className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 py-3"
             >
-              Remove
-            </Button>
-          </li>
-        ))}
-        {projects.length === 0 ? (
-          <li className="rounded-lg border border-dashed border-border px-6 py-10 text-center">
-            <p className="text-[13px] font-medium">No projects yet</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              Add a project folder to manage its agents, skills, and MCP servers alongside your
-              global configuration.
-            </p>
-          </li>
-        ) : null}
-      </ul>
+              <Folder aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0">
+                <div className="text-[13px] font-medium">{project.name}</div>
+                <code className="block truncate font-mono text-[11px] text-muted-foreground">
+                  {project.path}
+                </code>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => setPendingRemoval(project)}
+              >
+                Remove
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <Dialog open={pendingRemoval !== null} onOpenChange={(open) => !open && setPendingRemoval(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Remove {pendingRemoval?.name}?</DialogTitle>
             <DialogDescription>
-              Agent Control stops managing this folder. Nothing on disk is deleted.
+              Desmos Agent stops managing this folder. Nothing on disk is deleted.
             </DialogDescription>
           </DialogHeader>
           {pendingRemoval ? (

@@ -144,7 +144,7 @@ export function ResourceEditor({ doc, onCancel, onSaved, onReload }: ResourceEdi
             <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0 text-amber-500" />
             <span>
               {failure.code === 'conflict'
-                ? 'This file changed outside Agent Control since you loaded it.'
+                ? 'This file changed outside Desmos Agent since you loaded it.'
                 : failure.message}
               {failure.recovery ? ` ${failure.recovery}` : ''}
             </span>

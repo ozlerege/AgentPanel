@@ -1,5 +1,5 @@
 appId: com.egeozler.agent-control
-productName: Agent Control
+productName: Desmos Agent
 directories:
   output: dist
 files:

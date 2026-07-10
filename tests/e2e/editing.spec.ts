@@ -91,7 +91,7 @@ test('surfaces a conflict after an external modification and does not overwrite 
     await launched.page.getByRole('button', { name: 'Apply changes' }).click()
 
     await expect(launched.page.getByRole('alert')).toContainText(
-      'This file changed outside Agent Control since you loaded it.'
+      'This file changed outside Desmos Agent since you loaded it.'
     )
     expect(readFileSync(target, 'utf8')).toBe(external)
   } finally {

@@ -70,7 +70,7 @@ export function PreviewDialog({
             <div role="alert" className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-[12px]">
               <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0 text-amber-500" />
               <span>
-                Changed outside Agent Control since you loaded it: {preview.conflicts.join(', ')}.
+                Changed outside Desmos Agent since you loaded it: {preview.conflicts.join(', ')}.
                 Close this dialog and reload before applying.
               </span>
             </div>

@@ -1,6 +1,6 @@
-# Agent Control
+# Desmos Agent
 
-Agent Control is a local desktop configuration manager for Codex and Claude Code.
+Desmos Agent is a local desktop configuration manager for Codex and Claude Code.
 
 ## Development
 
