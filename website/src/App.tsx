@@ -80,17 +80,37 @@ export default function App() {
   useReveal()
 
   useEffect(() => {
-    const handlePointer = (event: PointerEvent) => {
-      const el = heroWindow.current
-      if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const el = heroWindow.current
+    if (!el) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    let heroVisible = true
+    let frame = 0
+    let pointerX = 0
+    let pointerY = 0
+    const observer = new IntersectionObserver(([entry]) => {
+      heroVisible = entry.isIntersecting
+    })
+    observer.observe(el)
+    const update = () => {
+      frame = 0
       const rect = el.getBoundingClientRect()
-      const x = (event.clientX - rect.left) / rect.width - 0.5
-      const y = (event.clientY - rect.top) / rect.height - 0.5
+      const x = (pointerX - rect.left) / rect.width - 0.5
+      const y = (pointerY - rect.top) / rect.height - 0.5
       el.style.setProperty('--rx', `${-y * 2.4}deg`)
       el.style.setProperty('--ry', `${x * 3.4}deg`)
     }
-    window.addEventListener('pointermove', handlePointer)
-    return () => window.removeEventListener('pointermove', handlePointer)
+    const handlePointer = (event: PointerEvent) => {
+      if (!heroVisible || reduceMotion.matches) return
+      pointerX = event.clientX
+      pointerY = event.clientY
+      if (!frame) frame = requestAnimationFrame(update)
+    }
+    window.addEventListener('pointermove', handlePointer, { passive: true })
+    return () => {
+      window.removeEventListener('pointermove', handlePointer)
+      observer.disconnect()
+      if (frame) cancelAnimationFrame(frame)
+    }
   }, [])
 
   const closeMenu = () => setMenuOpen(false)
@@ -198,7 +218,7 @@ export default function App() {
               <div className="window-status"><i /> Live preview</div>
             </div>
             <div className="shot-stage">
-              <img key={activeShot} src={`/screenshots/${activeShot}.png`} alt={activeShot === 'overview' ? 'Codex and Claude usage dashboard' : 'Agent resource inspector with fields and source'} />
+              <img key={activeShot} loading="lazy" decoding="async" src={`/screenshots/${activeShot}.png`} alt={activeShot === 'overview' ? 'Codex and Claude usage dashboard' : 'Agent resource inspector with fields and source'} />
             </div>
           </div>
         </section>
