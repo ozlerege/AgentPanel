@@ -7,6 +7,8 @@
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
+    "site:dev": "bun run --cwd website dev",
+    "site:build": "bun run --cwd website build",
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "package:mac": "electron-vite build && electron-builder --mac",
