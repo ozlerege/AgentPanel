@@ -27,10 +27,6 @@ button { color: inherit; }
 .brand { display: flex; align-items: center; gap: 11px; font-weight: 700; letter-spacing: -.02em; }
 .brand img { width: 31px; height: 31px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
 .nav-links { display: flex; align-items: center; gap: 28px; font-size: 13px; }
-.nav-links > a:not(.button) { color: rgba(255,255,255,.7); transition: color .2s; }
-.nav-links > a:hover { color: white; }
-.nav-github { display: flex; align-items: center; gap: 7px; }
-.menu-button { display: none; background: none; border: 0; color: white; padding: 8px; }
 
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 48px; padding: 0 20px; border-radius: 9px; border: 1px solid transparent; font-size: 14px; font-weight: 650; transition: transform .2s, box-shadow .2s, background .2s; }
 .button:hover { transform: translateY(-2px); }
@@ -105,9 +101,6 @@ footer { min-height: 105px; max-width: 1200px; margin: 0 auto; padding: 28px 24p
 
 @media (max-width: 900px) {
   .site-header { width: calc(100% - 32px); }
-  .menu-button { display: block; }
-  .nav-links { display: none; position: absolute; top: 67px; left: 0; right: 0; padding: 18px; background: rgba(30,30,28,.98); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; flex-direction: column; align-items: stretch; gap: 8px; box-shadow: 0 25px 50px rgba(0,0,0,.25); }
-  .nav-links.open { display: flex; }.nav-links > a { padding: 10px; }.nav-links .button { margin-top: 4px; }
   .hero { min-height: 830px; }.hero-product { margin-top: 56px; height: 390px; }.hero-product > img { height: 347px; }
   .section-heading, .local-section { grid-template-columns: 1fr; }.section-heading { gap: 25px; }.feature-grid { grid-template-columns: repeat(2, 1fr); }
   .showcase-head { align-items: flex-start; flex-direction: column; }.local-section { gap: 30px; }.local-visual { max-width: 620px; width: 100%; margin: 0 auto; }
