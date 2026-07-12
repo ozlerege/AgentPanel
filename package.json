@@ -2,6 +2,7 @@
   "name": "agent-control",
   "version": "0.1.0",
   "description": "Local desktop configuration manager for Codex and Claude Code",
+  "author": "Ege Ozler <egeozler3@gmail.com>",
   "private": true,
   "type": "module",
   "main": "./out/main/index.js",
