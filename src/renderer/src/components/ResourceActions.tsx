@@ -5,10 +5,16 @@ import {
   Eye,
   MoreHorizontal,
   Power,
+  Share2,
   Trash2
 } from 'lucide-react'
 import type { AppError } from '@shared/ipc'
-import type { ChangePreview, ResourceDocument, ResourceMutation } from '@shared/resource'
+import type {
+  ChangePreview,
+  ProviderId,
+  ResourceDocument,
+  ResourceMutation
+} from '@shared/resource'
 import { Button } from './ui/button'
 import {
   Dialog,
@@ -26,9 +32,11 @@ import {
 } from './ui/dropdown-menu'
 import { Input } from './ui/input'
 import { PreviewDialog } from './editor/PreviewDialog'
+import { buildShareDraft } from '../lib/editor-model'
 
 interface ResourceActionTarget {
   id: string
+  provider: ProviderId
   kind: string
   name: string
   enabled: boolean | 'unsupported'
@@ -53,7 +61,7 @@ interface ResourceActionsProps {
   onDeleted(backup: DeletedBackup): void
 }
 
-type PendingKind = 'duplicate' | 'delete' | 'set-enabled'
+type PendingKind = 'duplicate' | 'delete' | 'set-enabled' | 'share'
 
 interface PendingMutation {
   kind: PendingKind
@@ -83,6 +91,8 @@ export function ResourceActions({
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<AppError | null>(null)
   const [exportedTo, setExportedTo] = useState<string | null>(null)
+  const [sharedTo, setSharedTo] = useState<string | null>(null)
+  const shareTarget = resource.provider === 'claude' ? 'Codex' : 'Claude Code'
 
   const previewMutation = async (kind: PendingKind, mutation: ResourceMutation) => {
     setBusy(true)
@@ -125,6 +135,21 @@ export function ResourceActions({
     )
   }
 
+  const shareAcross = async () => {
+    setBusy(true)
+    setFailure(null)
+    let doc: ResourceDocument
+    try {
+      doc = await window.desktopApi.resources.read(resource.id)
+    } catch (cause) {
+      setFailure(errorFrom(cause, 'resources:read'))
+      setBusy(false)
+      return
+    }
+    setBusy(false)
+    await previewMutation('share', { action: 'create', draft: buildShareDraft(doc) })
+  }
+
   const applyPending = async () => {
     if (pending === null) return
     setBusy(true)
@@ -139,6 +164,12 @@ export function ResourceActions({
     }
     if (appliedKind === 'delete') {
       onDeleted({ id: envelope.data.backupId, name: resource.name })
+      onChanged(undefined)
+      return
+    }
+    if (appliedKind === 'share') {
+      const sharedPath = envelope.data.document?.sourcePaths[0]
+      if (sharedPath !== undefined) setSharedTo(sharedPath)
       onChanged(undefined)
       return
     }
@@ -202,6 +233,11 @@ export function ResourceActions({
               <Download aria-hidden /> Export
             </DropdownMenuItem>
           ) : null}
+          {resource.kind === 'agents' ? (
+            <DropdownMenuItem onSelect={shareAcross}>
+              <Share2 aria-hidden /> Share with {shareTarget}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onSelect={revealResource}>
             <Eye aria-hidden /> Reveal in Finder
           </DropdownMenuItem>
@@ -257,7 +293,9 @@ export function ResourceActions({
               ? `Delete ${resource.name}`
               : pending.kind === 'duplicate'
                 ? `Duplicate ${resource.name}`
-                : `${resource.enabled ? 'Disable' : 'Enable'} ${resource.name}`
+                : pending.kind === 'share'
+                  ? `Share ${resource.name} with ${shareTarget}`
+                  : `${resource.enabled ? 'Disable' : 'Enable'} ${resource.name}`
           }
           description={
             pending.kind === 'delete'
@@ -269,9 +307,11 @@ export function ResourceActions({
               ? 'Delete resource'
               : pending.kind === 'duplicate'
                 ? 'Create duplicate'
-                : resource.enabled
-                  ? 'Disable resource'
-                  : 'Enable resource'
+                : pending.kind === 'share'
+                  ? 'Share agent'
+                  : resource.enabled
+                    ? 'Disable resource'
+                    : 'Enable resource'
           }
           confirmVariant={pending.kind === 'delete' ? 'destructive' : 'default'}
           onConfirm={applyPending}
@@ -290,6 +330,24 @@ export function ResourceActions({
             </DialogHeader>
             <div className="flex justify-end">
               <Button size="sm" onClick={() => setExportedTo(null)}>
+                OK
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
+      {sharedTo ? (
+        <Dialog open onOpenChange={(open) => (!open ? setSharedTo(null) : undefined)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Share complete</DialogTitle>
+              <DialogDescription role="status" className="break-all font-mono">
+                {sharedTo}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setSharedTo(null)}>
                 OK
               </Button>
             </div>

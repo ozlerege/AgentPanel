@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { ResourceDocument } from '@shared/resource'
 import {
   buildResourceCreateDraft,
+  buildShareDraft,
   formFieldSpecs,
   hasBodyEditor,
   initialArgs,
@@ -76,6 +77,76 @@ describe('initial values', () => {
     expect(initialArgs(doc({ kind: 'mcp-servers' }))).toBe('')
     expect(initialEnv(mcp)).toEqual([{ key: 'A', value: '1' }])
     expect(initialEnv(doc({ kind: 'mcp-servers' }))).toEqual([])
+  })
+})
+
+describe('buildShareDraft', () => {
+  it('converts a Claude agent body into Codex developer instructions', () => {
+    expect(
+      buildShareDraft(
+        doc({
+          name: 'Reviewer',
+          description: 'Reviews PRs',
+          native: {
+            format: 'markdown',
+            raw: '---\nname: Reviewer\ndescription: Reviews PRs\n---\n\nBe thorough.\n'
+          }
+        })
+      )
+    ).toEqual({
+      provider: 'codex',
+      kind: 'agents',
+      scope: 'user',
+      name: 'Reviewer',
+      fields: {
+        description: 'Reviews PRs',
+        developer_instructions: '\nBe thorough.\n'
+      }
+    })
+  })
+
+  it('converts Codex developer instructions into a Claude agent body', () => {
+    expect(
+      buildShareDraft(
+        doc({
+          provider: 'codex',
+          name: 'Reviewer',
+          description: 'Reviews PRs',
+          fields: { developer_instructions: 'Use concise notes.' },
+          native: { format: 'toml', raw: 'name = "Reviewer"' }
+        })
+      )
+    ).toEqual({
+      provider: 'claude',
+      kind: 'agents',
+      scope: 'user',
+      name: 'Reviewer',
+      fields: { description: 'Reviews PRs' },
+      body: 'Use concise notes.'
+    })
+  })
+
+  it('uses empty strings for missing source values', () => {
+    expect(buildShareDraft(doc({ description: undefined, native: { format: 'markdown' } }))).toEqual({
+      provider: 'codex',
+      kind: 'agents',
+      scope: 'user',
+      name: 'x',
+      fields: { description: '', developer_instructions: '' }
+    })
+
+    expect(
+      buildShareDraft(
+        doc({ provider: 'codex', description: undefined, fields: { developer_instructions: 3 } })
+      )
+    ).toEqual({
+      provider: 'claude',
+      kind: 'agents',
+      scope: 'user',
+      name: 'x',
+      fields: { description: '' },
+      body: ''
+    })
   })
 })
 

@@ -104,6 +104,29 @@ export function parseEnvRows(envRows: EnvRow[]): Record<string, string> {
   )
 }
 
+export function buildShareDraft(doc: ResourceDocument): ResourceCreateDraft {
+  if (doc.provider === 'claude') {
+    return buildResourceCreateDraft({
+      provider: 'codex',
+      kind: 'agents',
+      scope: 'user',
+      name: doc.name,
+      description: doc.description ?? '',
+      developerInstructions: splitBody(doc.native.raw ?? '')
+    })
+  }
+
+  const developerInstructions = doc.fields['developer_instructions']
+  return buildResourceCreateDraft({
+    provider: 'claude',
+    kind: 'agents',
+    scope: 'user',
+    name: doc.name,
+    description: doc.description ?? '',
+    body: typeof developerInstructions === 'string' ? developerInstructions : ''
+  })
+}
+
 export function buildResourceCreateDraft(input: CreateDraftInput): ResourceCreateDraft {
   let fields: Record<string, unknown> = {}
   let body: string | undefined = input.body
