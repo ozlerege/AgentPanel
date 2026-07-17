@@ -4,6 +4,7 @@ import type { ProviderCapabilities, ProviderStatus, ProviderUsage } from '@share
 import { EmptyState } from './components/EmptyState'
 import { NavSidebar } from './components/NavSidebar'
 import { Button } from './components/ui/button'
+import { FontSizeProvider } from './lib/font-size'
 import { ThemeProvider } from './lib/theme'
 import { cn } from './lib/utils'
 import { HistoryScreen } from './screens/HistoryScreen'
@@ -131,58 +132,60 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <div className="flex h-screen overflow-hidden">
-        <div
-          className={cn(
-            'shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out motion-reduce:transition-none',
-            sidebarOpen ? 'w-60' : 'w-0'
-          )}
-          aria-hidden={!sidebarOpen}
-        >
-          <NavSidebar
-            capabilities={capabilities}
-            providers={providers}
-            selected={selected}
-            onSelect={setSelected}
-            onToggle={() => setSidebarOpen(false)}
-            className={cn(
-              'transition-opacity duration-200 ease-in-out motion-reduce:transition-none',
-              sidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
-            )}
-          />
-        </div>
-        <main className="min-w-0 flex-1 overflow-y-auto">
+      <FontSizeProvider>
+        <div className="flex h-screen overflow-hidden">
           <div
             className={cn(
-              'sticky top-0 z-10 overflow-hidden border-b border-border bg-background/95 backdrop-blur-sm transition-[max-height,opacity,border-color] duration-300 ease-in-out motion-reduce:transition-none',
-              sidebarOpen ? 'max-h-0 border-transparent opacity-0' : 'max-h-14 opacity-100'
+              'shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out motion-reduce:transition-none',
+              sidebarOpen ? 'w-60' : 'w-0'
             )}
+            aria-hidden={!sidebarOpen}
           >
-            <div className="px-4 py-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Show sidebar"
-                aria-hidden={sidebarOpen}
-                tabIndex={sidebarOpen ? -1 : 0}
-                onClick={() => setSidebarOpen(true)}
-              >
-                <PanelLeft aria-hidden />
-              </Button>
-            </div>
+            <NavSidebar
+              capabilities={capabilities}
+              providers={providers}
+              selected={selected}
+              onSelect={setSelected}
+              onToggle={() => setSidebarOpen(false)}
+              className={cn(
+                'transition-opacity duration-200 ease-in-out motion-reduce:transition-none',
+                sidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+              )}
+            />
           </div>
-          <Screen
-            selected={selected}
-            capabilities={capabilities}
-            providers={providers}
-            usage={usage}
-            usageLoading={usageLoading}
-            resourceChangeVersion={resourceChangeVersion}
-            onRefreshUsage={refreshUsage}
-          />
-        </main>
-      </div>
+          <main className="min-w-0 flex-1 overflow-y-auto">
+            <div
+              className={cn(
+                'sticky top-0 z-10 overflow-hidden border-b border-border bg-background/95 backdrop-blur-sm transition-[max-height,opacity,border-color] duration-300 ease-in-out motion-reduce:transition-none',
+                sidebarOpen ? 'max-h-0 border-transparent opacity-0' : 'max-h-14 opacity-100'
+              )}
+            >
+              <div className="px-4 py-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Show sidebar"
+                  aria-hidden={sidebarOpen}
+                  tabIndex={sidebarOpen ? -1 : 0}
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <PanelLeft aria-hidden />
+                </Button>
+              </div>
+            </div>
+            <Screen
+              selected={selected}
+              capabilities={capabilities}
+              providers={providers}
+              usage={usage}
+              usageLoading={usageLoading}
+              resourceChangeVersion={resourceChangeVersion}
+              onRefreshUsage={refreshUsage}
+            />
+          </main>
+        </div>
+      </FontSizeProvider>
     </ThemeProvider>
   )
 }
