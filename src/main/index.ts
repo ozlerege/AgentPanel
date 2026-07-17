@@ -136,9 +136,9 @@ void app.whenReady().then(() => {
       window.webContents.send(RESOURCES_CHANGED_CHANNEL)
     }
   })
-  app.on('before-quit', () => {
-    void watcher.close()
-  })
+  // The watcher is non-persistent, so the OS can reclaim it on process exit.
+  // Closing FSEvents from Electron's before-quit handler can block the main
+  // thread inside uv_fs_event_stop and leave macOS showing a spinning cursor.
   const exchange = new ExchangeService(resources, {
     async saveFile(defaultName) {
       const result = await dialog.showSaveDialog({
