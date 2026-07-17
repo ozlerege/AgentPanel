@@ -77,7 +77,7 @@ test('has no serious or critical axe violations on primary app surfaces', async 
       .getByRole('navigation', { name: 'Main navigation' })
       .getByRole('button', { name: 'History', exact: true })
       .click()
-    await expect(page.getByRole('heading', { name: 'History' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible()
     await expectNoSeriousOrCriticalViolations(page, 'history')
 
     await page
