@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 
 const GITHUB_URL = 'https://github.com/ozlerege/AgentPanel'
-const DOWNLOAD_URL = `${GITHUB_URL}/releases/download/v0.1.0/Desmos-Agent-0.1.0-arm64.dmg`
+const DOWNLOAD_URL = `${GITHUB_URL}/releases/download/v0.1.2/Desmos-Agent-0.1.2-arm64.dmg`
 
 const features = [
   {
