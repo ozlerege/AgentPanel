@@ -6,3 +6,7 @@ dist/
 .superpowers/
 test-results/
 playwright-report/
+site-dist/
+
+# Local Netlify folder
+.netlify
